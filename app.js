@@ -5,15 +5,29 @@
 (function () {
   const C = window.BL_CONFIG || {};
 
-  if (!C.SUPABASE_URL || C.SUPABASE_URL.indexOf('XXXXXX') >= 0 ||
-      !C.SUPABASE_ANON_KEY || C.SUPABASE_ANON_KEY.indexOf('PASTE_') >= 0) {
+  var badUrl = !C.SUPABASE_URL || C.SUPABASE_URL.indexOf('XXXXXX') >= 0;
+  var badKey = !C.SUPABASE_ANON_KEY || C.SUPABASE_ANON_KEY.indexOf('PASTE_') >= 0 ||
+               C.SUPABASE_ANON_KEY.length < 20;
+
+  if (badUrl || badKey) {
     document.addEventListener('DOMContentLoaded', function () {
+      var seenUrl = C.SUPABASE_URL || '(ไม่พบ — config.js ไม่ได้ถูกโหลด)';
+      var seenKey = C.SUPABASE_ANON_KEY
+        ? C.SUPABASE_ANON_KEY.slice(0, 22) + '…'
+        : '(ไม่พบ — config.js ไม่ได้ถูกโหลด)';
       document.body.innerHTML =
-        '<div style="max-width:560px;margin:80px auto;font-family:Sarabun,sans-serif;' +
-        'background:#fff;border:2px solid #D0212B;border-radius:14px;padding:28px">' +
+        '<div style="max-width:660px;margin:70px auto;font-family:Sarabun,sans-serif;' +
+        'background:#fff;border:2px solid #D0212B;border-radius:14px;padding:26px 28px">' +
         '<h2 style="color:#D0212B;margin:0 0 10px">ยังไม่ได้ตั้งค่า</h2>' +
-        '<p style="color:#334">กรุณาเปิดไฟล์ <b>config.js</b> แล้วใส่ <b>SUPABASE_ANON_KEY</b> ' +
-        '(Supabase → Project Settings → API Keys → anon / public) ก่อนใช้งาน</p></div>';
+        '<p style="color:#334;margin:0 0 14px">เบราว์เซอร์กำลังอ่านค่าจาก <b>config.js</b> ได้แบบนี้:</p>' +
+        '<div style="background:#F4F6FA;border-radius:9px;padding:12px 14px;font-size:13px;' +
+        'font-family:monospace;word-break:break-all;line-height:1.8">' +
+        'SUPABASE_URL = ' + seenUrl + '<br>SUPABASE_ANON_KEY = ' + seenKey + '</div>' +
+        '<p style="color:#334;margin:16px 0 6px"><b>ถ้าค่าข้างบนยังเป็นของเก่า</b> = เบราว์เซอร์ใช้ไฟล์ที่แคชไว้</p>' +
+        '<ol style="color:#334;line-height:1.85;margin:0;padding-left:20px">' +
+        '<li>กด <b>Ctrl+Shift+R</b> (Mac: <b>Cmd+Shift+R</b>) เพื่อล้างแคช</li>' +
+        '<li>ถ้ายังไม่หาย เปิด <code>config.js</code> บน GitHub ดูว่าไฟล์ที่อัปขึ้นไปมี key จริงหรือยัง</li>' +
+        '<li>GitHub Pages ใช้เวลา deploy ~1–2 นาทีหลังอัปไฟล์</li></ol></div>';
     });
     return;
   }
