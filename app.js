@@ -5,14 +5,15 @@
 (function () {
   const C = window.BL_CONFIG || {};
 
-  if (!C.SUPABASE_URL || C.SUPABASE_URL.indexOf('XXXXXX') >= 0) {
+  if (!C.SUPABASE_URL || C.SUPABASE_URL.indexOf('XXXXXX') >= 0 ||
+      !C.SUPABASE_ANON_KEY || C.SUPABASE_ANON_KEY.indexOf('PASTE_') >= 0) {
     document.addEventListener('DOMContentLoaded', function () {
       document.body.innerHTML =
         '<div style="max-width:560px;margin:80px auto;font-family:Sarabun,sans-serif;' +
         'background:#fff;border:2px solid #D0212B;border-radius:14px;padding:28px">' +
         '<h2 style="color:#D0212B;margin:0 0 10px">ยังไม่ได้ตั้งค่า</h2>' +
-        '<p style="color:#334">กรุณาเปิดไฟล์ <b>config.js</b> แล้วใส่ SUPABASE_URL และ ' +
-        'SUPABASE_ANON_KEY ของโปรเจกต์ Supabase ก่อนใช้งาน</p></div>';
+        '<p style="color:#334">กรุณาเปิดไฟล์ <b>config.js</b> แล้วใส่ <b>SUPABASE_ANON_KEY</b> ' +
+        '(Supabase → Project Settings → API Keys → anon / public) ก่อนใช้งาน</p></div>';
     });
     return;
   }
