@@ -141,61 +141,22 @@
       .replace(/"/g, '&quot;');
   }
 
-  /* ---------- Auth + Role ---------- */
-  let ME = null, ROLE = 'staff', STATUS = 'active', PROFILE = null;
-
-  const ROLE_TH = { admin: 'ผู้ดูแลระบบ', staff: 'พนักงาน' };
-
-  function blockScreen(title, msg) {
-    document.body.innerHTML =
-      '<div style="max-width:520px;margin:90px auto;font-family:Sarabun,sans-serif;text-align:center;' +
-      'background:#fff;border:1px solid #E3E8F0;border-radius:16px;padding:34px 28px;' +
-      'box-shadow:0 8px 24px rgba(26,41,66,.1)">' +
-      '<div style="font-size:42px">🔒</div>' +
-      '<h2 style="color:#1A2942;margin:10px 0 8px">' + title + '</h2>' +
-      '<p style="color:#6B7280;line-height:1.7;margin:0 0 18px">' + msg + '</p>' +
-      '<button id="bl-out2" style="background:#1A2942;color:#fff;border:0;border-radius:9px;' +
-      'padding:10px 20px;font-family:inherit;font-size:14.5px;cursor:pointer">ออกจากระบบ</button></div>';
-    var b = document.getElementById('bl-out2');
-    if (b) b.onclick = signOut;
-  }
-
-  async function requireAuth(opts) {
-    opts = opts || {};
+  /* ---------- Auth ---------- */
+  let ME = null;
+  async function requireAuth() {
     const { data } = await sb.auth.getSession();
     if (!data || !data.session) {
       location.href = 'index.html?next=' + encodeURIComponent(location.pathname.split('/').pop());
       return null;
     }
     ME = data.session.user;
-
-    // สร้างโปรไฟล์ครั้งแรก (role = staff เสมอ — RLS บังคับไว้)
-    await sb.from('bl_users').upsert({
-      id: ME.id, email: ME.email,
-      full_name: (ME.user_metadata && ME.user_metadata.full_name) || ME.email
-    }, { onConflict: 'id', ignoreDuplicates: true });
-
-    const r = await sb.rpc('bl_me');
-    if (r && r.data) {
-      PROFILE = r.data;
-      ROLE = r.data.role || 'staff';
-      STATUS = r.data.status || 'active';
-    }
-
-    if (STATUS === 'disabled') {
-      blockScreen('บัญชีถูกระงับ',
-        'บัญชี ' + esc(ME.email) + ' ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ');
-      return null;
-    }
-    if (opts.admin && ROLE !== 'admin') {
-      blockScreen('ต้องเป็นผู้ดูแลระบบ',
-        'หน้านี้เปิดให้เฉพาะผู้ดูแลระบบ<br>สิทธิ์ปัจจุบันของคุณคือ “' + (ROLE_TH[ROLE] || ROLE) + '”');
-      return null;
-    }
     return ME;
   }
-
-  function isAdmin() { return ROLE === 'admin'; }
+  function isAdmin() {
+    if (!ME) return false;
+    const list = (C.ADMIN_EMAILS || []).map(function (e) { return String(e).toLowerCase(); });
+    return list.indexOf(String(ME.email || '').toLowerCase()) >= 0;
+  }
   async function signOut() { await sb.auth.signOut(); location.href = 'index.html'; }
 
   /* ---------- แถบเมนูบน ---------- */
@@ -204,23 +165,19 @@
     { f: 'check.html',     t: 'เช็คเบอร์ก่อนส่ง' },
     { f: 'screen.html',    t: 'ตรวจไฟล์ออเดอร์' },
     { f: 'import.html',    t: 'นำเข้าข้อมูลตีกลับ' },
-    { f: 'blacklist.html', t: 'จัดการ Blacklist' },
-    { f: 'users.html',     t: 'ผู้ใช้งาน', admin: true }
+    { f: 'blacklist.html', t: 'จัดการ Blacklist' }
   ];
   function renderNav(active) {
     const el = document.getElementById('nav');
     if (!el) return;
-    const items = NAV.filter(function (n) { return !n.admin || isAdmin(); });
     el.innerHTML =
       '<div class="nav-in">' +
       '<a class="brand" href="index.html"><span class="dot"></span>' +
       (C.BRAND || 'MASARU') + ' <b>BLACKLIST</b></a>' +
-      '<nav>' + items.map(function (n) {
+      '<nav>' + NAV.map(function (n) {
         return '<a href="' + n.f + '"' + (n.f === active ? ' class="on"' : '') + '>' + n.t + '</a>';
       }).join('') + '</nav>' +
-      '<div class="me">' +
-      '<span class="role-chip' + (isAdmin() ? ' adm' : '') + '">' + (ROLE_TH[ROLE] || ROLE) + '</span>' +
-      (ME ? esc(ME.email) : '') +
+      '<div class="me">' + (ME ? esc(ME.email) : '') +
       ' <button id="btn-out" class="lnk">ออกจากระบบ</button></div></div>';
     const b = document.getElementById('btn-out');
     if (b) b.onclick = signOut;
@@ -230,8 +187,6 @@
     sb: sb, cfg: C, normPhone: normPhone, fmtPhone: fmtPhone, toDate: toDate,
     thDate: thDate, num: num, pageAll: pageAll, RISK: RISK, riskBadge: riskBadge,
     toast: toast, esc: esc, requireAuth: requireAuth, isAdmin: isAdmin,
-    signOut: signOut, renderNav: renderNav, me: function () { return ME; },
-    role: function () { return ROLE; }, profile: function () { return PROFILE; },
-    ROLE_TH: ROLE_TH, blockScreen: blockScreen
+    signOut: signOut, renderNav: renderNav, me: function () { return ME; }
   };
 })();
