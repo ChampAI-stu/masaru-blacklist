@@ -4,8 +4,12 @@
    ค่าจาก Supabase: Project Settings → API
    ========================================================================== */
 window.BL_CONFIG = {
-  SUPABASE_URL:      'https://XXXXXXXXXXXX.supabase.co',
-  SUPABASE_ANON_KEY: 'PASTE_YOUR_ANON_PUBLIC_KEY_HERE',
+  // โปรเจกต์ masaru-champ (ใช้ร่วมกับระบบอื่น — ตารางทั้งหมดขึ้นต้นด้วย bl_ จึงไม่ชนกัน)
+  SUPABASE_URL:      'https://rmunaewdmlnsiwogmozq.supabase.co',
+
+  // ⬇️ เหลือบรรทัดนี้บรรทัดเดียวที่ต้องแก้
+  // เอามาจาก Supabase → Project Settings → API Keys → anon / public
+  SUPABASE_ANON_KEY: 'PASTE_ANON_PUBLIC_KEY_HERE',
 
   // รหัสเชิญสำหรับสมัครสมาชิก (บอกเฉพาะคนในทีม)
   INVITE_CODE: 'MASARU-BL',
