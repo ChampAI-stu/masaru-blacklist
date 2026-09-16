@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>คีย์รายการตีกลับ — MASARU BLACKLIST</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .form{max-width:900px}
+  .grid-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+  .req b{color:#D0212B}
+  .phone-in{font-size:20px;letter-spacing:.8px;font-variant-numeric:tabular-nums}
+  #phone-hint{margin-top:7px;font-size:13.5px;min-height:20px}
+  #phone-hint.ok{color:#16a34a} #phone-hint.warn{color:#b45309} #phone-hint.bad{color:#b91c1c}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .quick button{background:#EEF2F7;border:1px solid var(--line);border-radius:7px;padding:4px 11px;
+                font-family:inherit;font-size:12.5px;cursor:pointer;color:#475569}
+  .quick button:hover{background:#dde5f0}
+  .saved{border-left:4px solid #16a34a;background:#F0FDF4;border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .saved b{color:#15803d}
+</style>
+</head>
+<body>
+<header id="nav"></header>
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>คีย์รายการตีกลับเอง</h1>
+      <p>ใช้เมื่อรู้ทันทีว่าลูกค้าไม่รับของ โดยไม่ต้องรอไฟล์รายงานรอบถัดไป</p>
+    </div>
+  </div>
+
+  <div id="saved-box"></div>
+
+  <div class="card form">
+    <h2>ข้อมูลรายการ</h2>
+
+    <div class="field req">
+      <label>เบอร์โทรลูกค้า <b>*</b></label>
+      <input id="f-phone" class="phone-in" inputmode="numeric" placeholder="08X-XXX-XXXX" autocomplete="off">
+      <div id="phone-hint"></div>
+    </div>
+
+    <div class="grid-f">
+      <div><label>ชื่อผู้รับ</label><input id="f-name"></div>
+      <div class="req"><label>แพลตฟอร์ม <b>*</b></label>
+        <select id="f-platform">
+          <option>JST</option><option>Lazada</option><option>Shopee</option>
+          <option>TikTok</option><option>Facebook</option><option>Offline</option>
+        </select>
+      </div>
+      <div><label>ร้าน / ช่องทาง</label><input id="f-shop" placeholder="เช่น MASARU Official"></div>
+
+      <div><label>เลขที่ออเดอร์</label><input id="f-order" placeholder="เว้นว่างได้"></div>
+      <div><label>เลขพัสดุ / Tracking</label><input id="f-track" placeholder="เว้นว่างได้"></div>
+      <div class="req"><label>วันที่ตีกลับ <b>*</b></label><input id="f-rdate" type="date"></div>
+
+      <div><label>วันที่สั่งซื้อ</label><input id="f-odate" type="date"></div>
+      <div><label>ยอด COD (บาท)</label><input id="f-cod" inputmode="decimal" placeholder="0"></div>
+      <div><label>จังหวัด</label><input id="f-prov"></div>
+    </div>
+
+    <div class="field" style="margin-top:12px">
+      <label>เหตุผล</label>
+      <input id="f-reason" placeholder="เช่น ปฏิเสธการรับ / ติดต่อไม่ได้">
+      <div class="quick" id="quick-reason"></div>
+    </div>
+
+    <div class="field">
+      <label>ที่อยู่ (ถ้ามี)</label>
+      <textarea id="f-addr" rows="2"></textarea>
+    </div>
+
+    <div class="note">
+      ถ้าไม่กรอกทั้งเลขออเดอร์และเลขพัสดุ ระบบจะสร้าง <b>รหัสอ้างอิง</b> ให้อัตโนมัติ
+      เพื่อไม่ให้ชนกับรายการอื่นของเบอร์เดียวกัน
+    </div>
+
+    <div class="row" style="margin-top:15px">
+      <div style="flex:0"><button class="btn red" id="btn-save">💾 บันทึกรายการ</button></div>
+      <div style="flex:0"><button class="btn ghost" id="btn-clear">ล้างฟอร์ม</button></div>
+      <div style="flex:0"><button class="btn ghost" id="btn-clear-keep">ล้างแต่เก็บแพลตฟอร์ม/ร้าน</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>รายการที่คีย์มือล่าสุด</h2>
+    <div class="sub">แสดง 50 รายการล่าสุด — ลบได้เฉพาะรายการที่ตัวเองคีย์ (ผู้ดูแลลบได้ทุกอัน)</div>
+    <div class="tw" style="max-height:440px">
+      <table>
+        <thead><tr>
+          <th>คีย์เมื่อ</th><th>เบอร์</th><th>ชื่อ</th><th>แพลตฟอร์ม</th>
+          <th>อ้างอิง</th><th>วันที่ตีกลับ</th><th class="num">COD</th>
+          <th>เหตุผล</th><th>ผู้คีย์</th><th></th>
+        </tr></thead>
+        <tbody id="tb"><tr><td colspan="10" class="empty">กำลังโหลด…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const sb = BL.sb, $ = function (id) { return document.getElementById(id); };
+  const REASONS = ['ปฏิเสธการรับ', 'ติดต่อไม่ได้', 'ไม่มีคนรับ', 'ที่อยู่ไม่ถูกต้อง',
+                   'ลูกค้ายกเลิก', 'สั่งซ้ำ/สั่งเล่น', 'เกินกำหนดรับ'];
+
+  function today() { return new Date().toISOString().slice(0, 10); }
+
+  $('quick-reason').innerHTML = REASONS.map(function (r) {
+    return '<button type="button" data-r="' + BL.esc(r) + '">' + BL.esc(r) + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('quick-reason').children, function (b) {
+    b.onclick = function () { $('f-reason').value = b.dataset.r; };
+  });
+
+  /* ---------- เช็คเบอร์สดๆ ตอนพิมพ์ ---------- */
+  let hintTimer = null;
+  $('f-phone').addEventListener('input', function () {
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(checkPhone, 350);
+  });
+
+  async function checkPhone() {
+    const el = $('phone-hint');
+    const p = BL.normPhone($('f-phone').value);
+    if (!p) {
+      el.className = $('f-phone').value.trim() ? 'bad' : '';
+      el.textContent = $('f-phone').value.trim() ? '⚠️ เบอร์ไม่ถูกต้อง (ต้องเป็นเบอร์ไทย 9–10 หลัก)' : '';
+      return;
+    }
+    el.className = ''; el.textContent = 'กำลังตรวจ ' + BL.fmtPhone(p) + ' …';
+    const { data } = await sb.from('bl_customers')
+      .select('reject_count,risk_level,name,last_reject_at').eq('phone', p).maybeSingle();
+    if (!data) {
+      el.className = 'ok';
+      el.textContent = '✅ ' + BL.fmtPhone(p) + ' — ยังไม่เคยมีประวัติตีกลับ';
+    } else {
+      const lv = BL.RISK[data.risk_level];
+      el.className = data.risk_level === 'ok' || data.risk_level === 'allow' ? 'ok'
+                   : data.risk_level === 'watch' ? 'warn' : 'bad';
+      el.innerHTML = BL.fmtPhone(p) + ' — เคยตีกลับ <b>' + data.reject_count + ' ครั้ง</b> ' +
+        '(ล่าสุด ' + BL.thDate(data.last_reject_at) + ') · ระดับ ' + (lv ? lv.t : data.risk_level) +
+        (data.name ? ' · ' + BL.esc(data.name) : '');
+      if (data.name && !$('f-name').value) $('f-name').value = data.name;
+    }
+  }
+
+  /* ---------- บันทึก ---------- */
+  $('btn-save').onclick = async function () {
+    const phone = BL.normPhone($('f-phone').value);
+    if (!phone) return BL.toast('เบอร์โทรไม่ถูกต้อง', 'err');
+    const rdate = $('f-rdate').value || today();
+
+    let order = $('f-order').value.trim();
+    const track = $('f-track').value.trim();
+    let autoRef = false;
+    if (!order && !track) {
+      const d = new Date();
+      order = 'MANUAL-' + d.toISOString().slice(0, 10).replace(/-/g, '') + '-' +
+              String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') +
+              String(d.getSeconds()).padStart(2, '0');
+      autoRef = true;
+    }
+
+    const me = BL.me();
+    const row = {
+      phone: phone,
+      phone_raw: $('f-phone').value.trim(),
+      name:        $('f-name').value.trim()   || null,
+      address:     $('f-addr').value.trim()   || null,
+      province:    $('f-prov').value.trim()   || null,
+      platform:    $('f-platform').value,
+      shop:        $('f-shop').value.trim()   || null,
+      order_no:    order || null,
+      tracking_no: track || null,
+      order_date:  $('f-odate').value || null,
+      reject_date: rdate,
+      cod_amount:  BL.num($('f-cod').value),
+      reason:      $('f-reason').value.trim() || null,
+      source:      'manual',
+      created_by:  me ? me.email : null
+    };
+
+    const btn = this; btn.disabled = true; btn.innerHTML = '<span class="spin"></span> กำลังบันทึก';
+    try {
+      const ins = await sb.from('bl_rejects')
+        .upsert([row], { onConflict: 'dedup_key', ignoreDuplicates: true }).select('id');
+      if (ins.error) throw ins.error;
+      if (!ins.data || !ins.data.length) {
+        BL.toast('รายการนี้มีอยู่แล้ว (เลขออเดอร์/พัสดุ + เบอร์ ซ้ำกับของเดิม)', 'warn');
+        return;
+      }
+      const rc = await sb.rpc('bl_recompute', { p_phone: phone });
+      if (rc.error) throw rc.error;
+
+      const { data: c } = await sb.from('bl_customers')
+        .select('reject_count,risk_level').eq('phone', phone).maybeSingle();
+      showSaved(phone, row.name, c, autoRef ? order : '');
+      clearForm(true);
+      loadRecent();
+    } catch (e) {
+      BL.toast('บันทึกไม่สำเร็จ: ' + e.message, 'err');
+    } finally {
+      btn.disabled = false; btn.textContent = '💾 บันทึกรายการ';
+    }
+  };
+
+  function showSaved(phone, name, c, ref) {
+    const lv = c ? (BL.RISK[c.risk_level] || BL.RISK.ok) : BL.RISK.ok;
+    $('saved-box').innerHTML =
+      '<div class="saved"><b>✅ บันทึกแล้ว</b> — ' + BL.fmtPhone(phone) +
+      (name ? ' (' + BL.esc(name) + ')' : '') +
+      (ref ? ' · รหัสอ้างอิง <span class="mono">' + BL.esc(ref) + '</span>' : '') +
+      '<div style="margin-top:6px">ตอนนี้เบอร์นี้ตีกลับรวม <b>' + (c ? c.reject_count : 1) +
+      ' ครั้ง</b> → ' + BL.riskBadge(c ? c.risk_level : 'ok') +
+      ' <a href="check.html?q=' + phone + '" target="_blank" style="color:#2E75B6;margin-left:8px">ดูรายละเอียด</a></div></div>';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function clearForm(keep) {
+    ['f-phone', 'f-name', 'f-order', 'f-track', 'f-cod', 'f-prov', 'f-addr'].forEach(function (id) {
+      $(id).value = '';
+    });
+    $('f-odate').value = '';
+    $('f-rdate').value = today();
+    if (!keep) {
+      $('f-platform').value = 'JST'; $('f-shop').value = ''; $('f-reason').value = '';
+      $('saved-box').innerHTML = '';
+    }
+    $('phone-hint').textContent = ''; $('phone-hint').className = '';
+    $('f-phone').focus();
+  }
+  $('btn-clear').onclick = function () { clearForm(false); };
+  $('btn-clear-keep').onclick = function () { clearForm(true); };
+
+  /* ---------- รายการล่าสุด ---------- */
+  async function loadRecent() {
+    const { data, error } = await sb.from('bl_rejects').select('*')
+      .eq('source', 'manual').order('created_at', { ascending: false }).limit(50);
+    const tb = $('tb');
+    if (error) { tb.innerHTML = '<tr><td colspan="10" class="empty">' + BL.esc(error.message) + '</td></tr>'; return; }
+    if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="10" class="empty">ยังไม่มีรายการที่คีย์มือ</td></tr>'; return; }
+    const myEmail = BL.me() ? BL.me().email : '';
+    tb.innerHTML = data.map(function (r) {
+      const canDel = BL.isAdmin() || r.created_by === myEmail;
+      return '<tr>' +
+        '<td style="font-size:12.5px">' + new Date(r.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) + '</td>' +
+        '<td class="mono"><a href="check.html?q=' + r.phone + '" target="_blank" style="color:#2E75B6;font-weight:600">' +
+          BL.fmtPhone(r.phone) + '</a></td>' +
+        '<td>' + BL.esc(r.name || '-') + '</td>' +
+        '<td><span class="tag">' + BL.esc(r.platform) + '</span></td>' +
+        '<td class="mono" style="font-size:12.5px">' + BL.esc(r.order_no || r.tracking_no || '-') + '</td>' +
+        '<td>' + BL.thDate(r.reject_date) + '</td>' +
+        '<td class="num">' + (r.cod_amount ? Math.round(r.cod_amount).toLocaleString('th-TH') : '-') + '</td>' +
+        '<td>' + BL.esc(r.reason || '-') + '</td>' +
+        '<td style="font-size:12px">' + BL.esc(r.created_by || '-') + '</td>' +
+        '<td>' + (canDel ? '<button class="btn sm ghost" data-del="' + r.id + '" data-ph="' + r.phone + '">ลบ</button>' : '') + '</td></tr>';
+    }).join('');
+    Array.prototype.forEach.call(tb.querySelectorAll('[data-del]'), function (b) {
+      b.onclick = function () { delRow(b.dataset.del, b.dataset.ph); };
+    });
+  }
+
+  async function delRow(id, phone) {
+    if (!window.confirm('ลบรายการนี้?')) return;
+    const { error } = await sb.from('bl_rejects').delete().eq('id', id);
+    if (error) return BL.toast(error.message, 'err');
+    await sb.rpc('bl_recompute', { p_phone: phone });
+    BL.toast('ลบแล้ว'); loadRecent();
+  }
+
+  /* ---------- boot ---------- */
+  (async function () {
+    if (!(await BL.requireAuth())) return;
+    BL.renderNav('add.html');
+    $('f-rdate').value = today();
+    $('f-phone').focus();
+    loadRecent();
+  })();
+})();
+</script>
+</body>
+</html>
