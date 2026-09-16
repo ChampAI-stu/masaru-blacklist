@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>จัดการ Blacklist — MASARU BLACKLIST</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .thresh{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+  .pill{display:inline-flex;gap:5px;align-items:center}
+  .actions button{margin-right:4px}
+</style>
+</head>
+<body>
+<header id="nav"></header>
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>จัดการ Blacklist</h1>
+      <p>รายชื่อลูกค้าที่มีประวัติสั่งแล้วไม่รับ พร้อมระดับความเสี่ยงที่คำนวณจากเกณฑ์ด้านล่าง</p>
+    </div>
+    <div>
+      <button class="btn ghost sm" id="btn-recalc">↻ คำนวณความเสี่ยงใหม่</button>
+      <button class="btn gold sm" id="btn-xls">⬇️ ส่งออก Excel</button>
+    </div>
+  </div>
+
+  <div class="card" id="card-set">
+    <h2>เกณฑ์ความเสี่ยง</h2>
+    <div class="sub">นับ “จำนวนครั้งที่ตีกลับ” ภายในช่วงเวลาที่กำหนด แล้วแบ่งระดับตามตัวเลขนี้</div>
+    <div class="thresh">
+      <div><label>เฝ้าระวัง เมื่อตีกลับตั้งแต่ (ครั้ง)</label><input id="s-watch" type="number" min="1"></div>
+      <div><label>เสี่ยงสูง เมื่อตีกลับตั้งแต่ (ครั้ง)</label><input id="s-high" type="number" min="1"></div>
+      <div><label>บล็อกอัตโนมัติ เมื่อตีกลับตั้งแต่ (ครั้ง)</label><input id="s-block" type="number" min="1"></div>
+      <div><label>นับย้อนหลัง (วัน)</label><input id="s-days" type="number" min="1"></div>
+    </div>
+    <div style="margin-top:13px">
+      <button class="btn" id="btn-save-set">💾 บันทึกเกณฑ์และคำนวณใหม่</button>
+      <span class="sub" style="margin-left:8px">แนะนำ: เฝ้าระวัง 2 · เสี่ยงสูง 3 · บล็อก 5 · ย้อนหลัง 365 วัน</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>รายชื่อลูกค้า</h2>
+    <div class="row" style="margin-bottom:12px">
+      <div style="flex:2"><label>ค้นหา (เบอร์ / ชื่อ)</label><input id="q" placeholder="พิมพ์เบอร์หรือชื่อ"></div>
+      <div><label>ระดับ</label>
+        <select id="f-risk">
+          <option value="">ทั้งหมด</option>
+          <option value="block">บล็อก</option>
+          <option value="high">เสี่ยงสูง</option>
+          <option value="watch">เฝ้าระวัง</option>
+          <option value="ok">ปกติ</option>
+          <option value="allow">ยกเว้น</option>
+        </select>
+      </div>
+      <div><label>เรียงตาม</label>
+        <select id="f-sort">
+          <option value="cnt">ตีกลับมากสุด</option>
+          <option value="last">ตีกลับล่าสุด</option>
+          <option value="cod">มูลค่า COD</option>
+        </select>
+      </div>
+      <div style="flex:0"><button class="btn" id="btn-load">ค้นหา</button></div>
+    </div>
+
+    <div class="sub" id="count"></div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>เบอร์โทร</th><th>ชื่อ</th><th class="num">ตีกลับ</th><th class="num">ในช่วงนับ</th>
+          <th>ครั้งแรก</th><th>ล่าสุด</th><th class="num">COD รวม</th>
+          <th>แพลตฟอร์ม</th><th>ระดับ</th><th style="width:190px">จัดการ</th>
+        </tr></thead>
+        <tbody id="tb"><tr><td colspan="10" class="empty">กำลังโหลด…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>เพิ่มเบอร์เข้า Blacklist เอง</h2>
+    <div class="sub">ใช้กรณีที่รู้ล่วงหน้าว่าไม่ควรส่ง เช่น ลูกค้าที่โทรมาก่อกวน หรือได้ข้อมูลจากช่องทางอื่น</div>
+    <div class="row">
+      <div><label>เบอร์โทร</label><input id="a-phone" placeholder="08X-XXX-XXXX"></div>
+      <div style="flex:2"><label>เหตุผล / หมายเหตุ</label><input id="a-note"></div>
+      <div style="flex:0"><button class="btn red" id="btn-add">🚫 บล็อกเบอร์นี้</button></div>
+      <div style="flex:0"><button class="btn ghost" id="btn-allow">✅ ยกเว้นเบอร์นี้</button></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const sb = BL.sb, $ = function (id) { return document.getElementById(id); };
+  let DATA = [];
+
+  /* ---------- เกณฑ์ ---------- */
+  async function loadSettings() {
+    const { data, error } = await sb.from('bl_settings').select('*').eq('id', 1).maybeSingle();
+    if (error || !data) return;
+    $('s-watch').value = data.watch_threshold;
+    $('s-high').value  = data.high_threshold;
+    $('s-block').value = data.block_threshold;
+    $('s-days').value  = data.window_days;
+  }
+
+  $('btn-save-set').onclick = async function () {
+    if (!BL.isAdmin()) return BL.toast('เฉพาะผู้ดูแลระบบเท่านั้น', 'warn');
+    const w = +$('s-watch').value, h = +$('s-high').value, b = +$('s-block').value, d = +$('s-days').value;
+    if (!(w >= 1 && h >= w && b >= h && d >= 1))
+      return BL.toast('ค่าต้องเรียงจากน้อยไปมาก: เฝ้าระวัง ≤ เสี่ยงสูง ≤ บล็อก', 'err');
+    const btn = this; btn.disabled = true; btn.innerHTML = '<span class="spin"></span> กำลังบันทึก';
+    const { error } = await sb.from('bl_settings').upsert({
+      id: 1, watch_threshold: w, high_threshold: h, block_threshold: b,
+      window_days: d, updated_at: new Date().toISOString()
+    });
+    if (!error) { const r = await sb.rpc('bl_recompute'); if (r.error) BL.toast(r.error.message, 'err'); }
+    btn.disabled = false; btn.textContent = '💾 บันทึกเกณฑ์และคำนวณใหม่';
+    if (error) return BL.toast(error.message, 'err');
+    BL.toast('บันทึกและคำนวณใหม่แล้ว'); load();
+  };
+
+  $('btn-recalc').onclick = async function () {
+    this.disabled = true; this.innerHTML = '<span class="spin"></span>';
+    const r = await sb.rpc('bl_recompute');
+    this.disabled = false; this.textContent = '↻ คำนวณความเสี่ยงใหม่';
+    if (r.error) return BL.toast(r.error.message, 'err');
+    BL.toast('คำนวณใหม่เรียบร้อย'); load();
+  };
+
+  /* ---------- ตาราง ---------- */
+  async function load() {
+    const q = $('q').value.trim();
+    const risk = $('f-risk').value;
+    const sort = $('f-sort').value;
+    const col = sort === 'last' ? 'last_reject_at' : sort === 'cod' ? 'cod_total' : 'reject_count';
+    $('tb').innerHTML = '<tr><td colspan="10" class="empty">กำลังโหลด…</td></tr>';
+    try {
+      DATA = await BL.pageAll(function () {
+        let b = sb.from('bl_customers').select('*').order(col, { ascending: false, nullsFirst: false });
+        if (risk) b = b.eq('risk_level', risk);
+        if (q) {
+          const p = BL.normPhone(q);
+          b = p ? b.eq('phone', p) : b.ilike('name', '%' + q + '%');
+        }
+        return b;
+      });
+      draw();
+    } catch (e) {
+      $('tb').innerHTML = '<tr><td colspan="10" class="empty">' + BL.esc(e.message) + '</td></tr>';
+    }
+  }
+
+  function draw() {
+    $('count').textContent = 'พบ ' + DATA.length.toLocaleString('th-TH') + ' รายการ';
+    if (!DATA.length) {
+      $('tb').innerHTML = '<tr><td colspan="10" class="empty">ไม่พบข้อมูล</td></tr>'; return;
+    }
+    const admin = BL.isAdmin();
+    $('tb').innerHTML = DATA.slice(0, 2000).map(function (r) {
+      return '<tr>' +
+        '<td class="mono"><a href="check.html?q=' + r.phone + '" target="_blank" style="color:#2E75B6;font-weight:600">' +
+          BL.fmtPhone(r.phone) + '</a></td>' +
+        '<td>' + BL.esc(r.name || '-') + '</td>' +
+        '<td class="num"><b>' + r.reject_count + '</b></td>' +
+        '<td class="num">' + r.reject_count_window + '</td>' +
+        '<td>' + BL.thDate(r.first_reject_at) + '</td>' +
+        '<td>' + BL.thDate(r.last_reject_at) + '</td>' +
+        '<td class="num">' + Math.round(r.cod_total || 0).toLocaleString('th-TH') + '</td>' +
+        '<td>' + (r.platforms || []).map(function (p) { return '<span class="tag">' + BL.esc(p) + '</span>'; }).join('') + '</td>' +
+        '<td>' + BL.riskBadge(r.risk_level) +
+          (r.manual_status ? '<div style="font-size:11px;color:#6B7280;margin-top:2px">ตั้งค่าเอง</div>' : '') + '</td>' +
+        '<td class="actions">' + (admin
+          ? '<button class="btn sm red" data-a="block" data-p="' + r.phone + '">บล็อก</button>' +
+            '<button class="btn sm ghost" data-a="allow" data-p="' + r.phone + '">ยกเว้น</button>' +
+            (r.manual_status ? '<button class="btn sm ghost" data-a="clear" data-p="' + r.phone + '">ล้าง</button>' : '')
+          : '<span class="sub">—</span>') + '</td></tr>';
+    }).join('');
+    Array.prototype.forEach.call($('tb').querySelectorAll('[data-a]'), function (b) {
+      b.onclick = function () { setOv(b.dataset.p, b.dataset.a === 'clear' ? null : b.dataset.a); };
+    });
+    if (DATA.length > 2000) $('count').textContent += ' (แสดง 2,000 รายการแรก — ส่งออก Excel เพื่อดูทั้งหมด)';
+  }
+
+  async function setOv(phone, status, note) {
+    const me = BL.me();
+    let err;
+    if (status === null) err = (await sb.from('bl_overrides').delete().eq('phone', phone)).error;
+    else err = (await sb.from('bl_overrides').upsert({
+      phone: phone, status: status, note: note || null,
+      updated_by: me ? me.email : null, updated_at: new Date().toISOString()
+    })).error;
+    if (err) return BL.toast(err.message, 'err');
+    const r = await sb.rpc('bl_recompute', { p_phone: phone });
+    if (r.error) return BL.toast(r.error.message, 'err');
+    BL.toast('อัปเดตแล้ว'); load();
+  }
+
+  /* ---------- เพิ่มเอง ---------- */
+  async function addManual(status) {
+    if (!BL.isAdmin()) return BL.toast('เฉพาะผู้ดูแลระบบเท่านั้น', 'warn');
+    const p = BL.normPhone($('a-phone').value);
+    if (!p) return BL.toast('เบอร์ไม่ถูกต้อง', 'err');
+    await setOv(p, status, $('a-note').value.trim());
+    $('a-phone').value = ''; $('a-note').value = '';
+  }
+  $('btn-add').onclick = function () { addManual('block'); };
+  $('btn-allow').onclick = function () { addManual('allow'); };
+
+  /* ---------- ส่งออก ---------- */
+  $('btn-xls').onclick = function () {
+    if (!DATA.length) return BL.toast('ไม่มีข้อมูล');
+    const lab = { block: 'บล็อก', high: 'เสี่ยงสูง', watch: 'เฝ้าระวัง', ok: 'ปกติ', allow: 'ยกเว้น' };
+    const rows = DATA.map(function (r) {
+      return {
+        'เบอร์โทร': r.phone, 'ชื่อ': r.name || '',
+        'จำนวนครั้งที่ตีกลับ': r.reject_count, 'ในช่วงที่นับ': r.reject_count_window,
+        'ตีกลับครั้งแรก': r.first_reject_at || '', 'ตีกลับล่าสุด': r.last_reject_at || '',
+        'มูลค่า COD รวม': r.cod_total || 0,
+        'แพลตฟอร์ม': (r.platforms || []).join(', '),
+        'จังหวัด': (r.provinces || []).join(', '),
+        'ระดับความเสี่ยง': lab[r.risk_level] || r.risk_level,
+        'ตั้งค่าเอง': r.manual_status || '', 'หมายเหตุ': r.note || ''
+      };
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Blacklist');
+    XLSX.writeFile(wb, 'MASARU Blacklist ' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  };
+
+  $('btn-load').onclick = load;
+  $('q').addEventListener('keydown', function (e) { if (e.key === 'Enter') load(); });
+  $('f-risk').onchange = load;
+  $('f-sort').onchange = load;
+
+  /* ---------- boot ---------- */
+  (async function () {
+    if (!(await BL.requireAuth())) return;
+    BL.renderNav('blacklist.html');
+    if (!BL.isAdmin()) {
+      $('card-set').querySelectorAll('input').forEach(function (i) { i.disabled = true; });
+    }
+    await loadSettings();
+    load();
+  })();
+})();
+</script>
+</body>
+</html>
