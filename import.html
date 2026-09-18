@@ -411,22 +411,71 @@
   $('btn-reread').onclick = readSheet;
 
   /* ---------------- แปลงข้อมูล ---------------- */
+  // ตัวแปลงวันที่สำหรับ Import โดยตรง — ไม่พึ่ง Date parser ของ browser
+  // รองรับ Date object, Excel serial, YYYY/MM/DD, YYYY/DD/MM,
+  // DD/MM/YYYY, MM/DD/YYYY และวันที่ที่ฝังอยู่ในข้อความ
+  function validImportDate(y, mo, d) {
+    y = Number(y); mo = Number(mo); d = Number(d);
+    if (y > 2400) y -= 543; // พ.ศ. -> ค.ศ.
+    if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return null;
+    if (y < 1900 || y > 2200 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    const dt = new Date(y, mo - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+    return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
   function smartDate(v) {
-    const direct = BL.toDate(v);
-    if (direct) return direct;
-    const s = String(v || '').trim();
-    // วันที่ที่ฝังอยู่ในหมายเหตุ เช่น *2026/9/14 09:30:00*
+    if (v === null || v === undefined || v === '') return null;
+
+    // XLSX.read(..., cellDates:true) จะได้ Date object ในหลายคอลัมน์
+    if (v instanceof Date && !isNaN(v.getTime())) {
+      return validImportDate(v.getFullYear(), v.getMonth() + 1, v.getDate());
+    }
+
+    // Excel serial date
+    if (typeof v === 'number' && isFinite(v) && v > 20000 && v < 80000) {
+      try {
+        if (window.XLSX && XLSX.SSF && XLSX.SSF.parse_date_code) {
+          const x = XLSX.SSF.parse_date_code(v);
+          if (x) return validImportDate(x.y, x.m, x.d);
+        }
+      } catch (_) {}
+      const dt = new Date(Math.round((v - 25569) * 86400 * 1000));
+      if (!isNaN(dt.getTime())) return validImportDate(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+    }
+
+    const s = String(v).trim();
+    if (!s) return null;
+
+    // YYYY/MM/DD — ถ้าเลขตรงกลาง > 12 แปลว่าไฟล์สลับเป็น YYYY/DD/MM
     let m = s.match(/(25\d{2}|20\d{2})[\/-](\d{1,2})[\/-](\d{1,2})/);
     if (m) {
-      const parsed = BL.toDate(m[0]);
-      if (parsed) return parsed;
+      const y = +m[1], a = +m[2], b = +m[3];
+      if (a > 12 && b >= 1 && b <= 12) return validImportDate(y, b, a);
+      const normal = validImportDate(y, a, b);
+      if (normal) return normal;
+      if (b <= 12) return validImportDate(y, b, a);
+      return null;
     }
+
+    // DD/MM/YYYY เป็นหลักสำหรับไฟล์ไทย; ถ้าช่องที่สอง > 12 ให้ตีความเป็น MM/DD/YYYY
     m = s.match(/(\d{1,2})[\/-](\d{1,2})[\/-](25\d{2}|20\d{2})/);
     if (m) {
-      const parsed = BL.toDate(m[0]);
-      if (parsed) return parsed;
+      const a = +m[1], b = +m[2], y = +m[3];
+      if (b > 12 && a >= 1 && a <= 12) return validImportDate(y, a, b);
+      const thai = validImportDate(y, b, a);
+      if (thai) return thai;
+      if (a <= 12) return validImportDate(y, a, b);
+      return null;
     }
+
     return null;
+  }
+
+  // ใช้ตรวจซ้ำก่อนส่งฐานข้อมูล เพื่อกันค่าหลุดอย่าง 2026-14-09
+  function dbSafeDate(v, fallback) {
+    const parsed = smartDate(v);
+    return parsed || fallback || null;
   }
   function monthFallback() {
     const m = String(FILENAME || '').match(/เดือน\s*(\d{1,2})/i);
@@ -581,7 +630,12 @@
           Math.min(i + CH, PARSED.length) + '/' + PARSED.length;
         const chunk = PARSED.slice(i, i + CH).map(function (r) {
           const o = {}; for (const k in r) o[k] = r[k];
-          o.batch_id = batchId; return o;
+          // sanitize วันที่อีกรอบ ณ จุดสุดท้ายก่อนส่ง Supabase
+          // เช่น 2026-14-09 จะถูกแก้เป็น 2026-09-14
+          o.order_date = dbSafeDate(o.order_date, null);
+          o.reject_date = dbSafeDate(o.reject_date, o.order_date || monthFallback());
+          o.batch_id = batchId;
+          return o;
         });
         const { data, error } = await sb.from('bl_rejects')
           .upsert(chunk, { onConflict: 'dedup_key', ignoreDuplicates: true })
