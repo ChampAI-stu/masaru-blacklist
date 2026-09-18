@@ -414,11 +414,18 @@
   function smartDate(v) {
     const direct = BL.toDate(v);
     if (direct) return direct;
-    const s = String(v || '');
-    let m = s.match(/(20\d{2})[\/-](\d{1,2})[\/-](\d{1,2})/);
-    if (m) return m[1] + '-' + String(+m[2]).padStart(2,'0') + '-' + String(+m[3]).padStart(2,'0');
+    const s = String(v || '').trim();
+    // วันที่ที่ฝังอยู่ในหมายเหตุ เช่น *2026/9/14 09:30:00*
+    let m = s.match(/(25\d{2}|20\d{2})[\/-](\d{1,2})[\/-](\d{1,2})/);
+    if (m) {
+      const parsed = BL.toDate(m[0]);
+      if (parsed) return parsed;
+    }
     m = s.match(/(\d{1,2})[\/-](\d{1,2})[\/-](25\d{2}|20\d{2})/);
-    if (m) { let y = +m[3]; if (y > 2400) y -= 543; return y + '-' + String(+m[2]).padStart(2,'0') + '-' + String(+m[1]).padStart(2,'0'); }
+    if (m) {
+      const parsed = BL.toDate(m[0]);
+      if (parsed) return parsed;
+    }
     return null;
   }
   function monthFallback() {
