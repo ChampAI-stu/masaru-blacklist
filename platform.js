@@ -78,7 +78,7 @@
         '<div class="tw"><table><thead><tr>' +
         '<th>วันที่ตีกลับ</th><th>เบอร์</th><th>ชื่อ</th><th>ร้าน</th><th>เลขออเดอร์</th>' +
         '<th>เลขพัสดุ</th><th>จังหวัด</th><th class="num">COD</th><th>เหตุผล</th><th>ที่มา</th>' +
-        (BL.isAdmin() ? '<th style="width:56px"></th>' : '') +
+        '<th style="width:56px"></th>' +
         '</tr></thead><tbody id="tb"><tr><td colspan="11" class="empty">กำลังโหลด…</td></tr></tbody></table></div>' +
       '</div>';
   }
@@ -220,9 +220,7 @@
         '<td>' + BL.esc(r.reason || '-') + '</td>' +
         '<td>' + (r.source === 'manual'
           ? '<span class="tag">คีย์มือ</span>' : '<span class="tag">ไฟล์</span>') + '</td>' +
-        (BL.isAdmin()
-          ? '<td><button class="btn sm ghost" data-del="' + r.id + '" title="ลบรายการนี้">ลบ</button></td>'
-          : '') + '</tr>';
+        '<td><button class="btn sm ghost" data-del="' + r.id + '" title="ลบรายการนี้">ลบ</button></td></tr>';
     }).join('');
 
     Array.prototype.forEach.call($('tb').querySelectorAll('[data-del]'), function (b) {
