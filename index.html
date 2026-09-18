@@ -64,26 +64,32 @@
 
   <div class="dash-hero">
     <div class="dash-hero-copy">
-      <div class="dash-eyebrow">MASARU PREMIUM COMMAND CENTER</div>
-      <h2>ควบคุมข้อมูล Blacklist ทุกแพลตฟอร์มในมุมมองเดียว</h2>
-      <p>Dashboard กลางสำหรับติดตามลูกค้าตีกลับ, ตรวจระดับความเสี่ยง, และเข้าถึงระบบของแต่ละแพลตฟอร์มด้วยหน้าตาแบบพรีเมียมและมีเอกลักษณ์เฉพาะแบรนด์</p>
+      <div class="dash-eyebrow" id="hero-date">—</div>
+      <h2 id="hero-head">กำลังโหลดข้อมูล…</h2>
+      <p id="hero-sub">ระบบกำลังอ่านข้อมูลลูกค้าตีกลับจากทุกแพลตฟอร์ม</p>
       <div class="dash-actions">
-        <a class="btn" href="check.html">🔎 เช็คเบอร์</a>
-        <a class="btn ghost" href="import.html">⬆️ นำเข้าข้อมูล</a>
+        <a class="btn" href="check.html">🔎 เช็คเบอร์ก่อนส่ง</a>
+        <a class="btn ghost" href="screen.html">📋 ตรวจไฟล์ออเดอร์</a>
+        <a class="btn ghost" href="blacklist.html">🚫 ดูรายชื่อเสี่ยง</a>
       </div>
     </div>
     <div class="dash-hero-board">
       <div class="dash-mini-grid">
-        <div class="dash-mini"><span>ตีกลับวันนี้</span><b id="hero-today">–</b></div>
-        <div class="dash-mini"><span>ตีกลับ 30 วัน</span><b id="hero-30">–</b></div>
-        <div class="dash-mini"><span>ลูกค้าในฐานข้อมูล</span><b id="hero-customers">–</b></div>
-        <div class="dash-mini"><span>บล็อกแล้ว</span><b id="hero-blocked">–</b></div>
+        <div class="dash-mini">
+          <span>นำเข้าข้อมูลล่าสุด</span>
+          <b id="hero-last-import" style="font-size:19px;line-height:1.3">—</b>
+          <span id="hero-last-when" style="margin-top:4px">กำลังตรวจ…</span>
+        </div>
+        <div class="dash-mini">
+          <span>ทีมเช็คเบอร์วันนี้</span>
+          <b id="hero-checks">—</b>
+          <span style="margin-top:4px">ครั้ง</span>
+        </div>
       </div>
-      <div class="dash-platform-strip" id="dash-platform-strip"></div>
     </div>
   </div>
 
-  <div class="section-head"><div><h2>ภาพรวมสถิติ</h2><p>ตัวชี้วัดสำคัญของระบบแบบ real-use dashboard</p></div></div>
+  <div class="section-head"><div><h2>ภาพรวมสถิติ</h2><p>ตัวเลขรวมทุกแพลตฟอร์ม</p></div></div>
   <div class="grid g4" style="margin-bottom:16px">
     <div class="kpi r"><div class="l">ตีกลับวันนี้</div><div class="v" id="k-today">–</div><div class="s">รายการ</div></div>
     <div class="kpi o"><div class="l">ตีกลับ 7 วันล่าสุด</div><div class="v" id="k-7">–</div><div class="s">รายการ</div></div>
@@ -230,10 +236,7 @@
       $('k-rep').textContent   = n(st.repeat);
       $('k-high').textContent  = n((st.high || 0));
       $('k-block').textContent = n(st.blocked);
-      $('hero-today').textContent = n(st.today);
-      $('hero-30').textContent = n(st.last30);
-      $('hero-customers').textContent = n(st.customers);
-      $('hero-blocked').textContent = n(st.blocked);
+      drawHero(st);
 
       // กราฟรายวัน 14 วัน
       const map = {};
@@ -257,7 +260,6 @@
       const pl = st.by_platform || [];
       const tot = pl.reduce(function (a, b) { return a + b.n; }, 0) || 1;
       drawPlatCards(pl);
-      drawDashPlatformStrip(pl);
 
       $('chart-plat').innerHTML = pl.length ? pl.map(function (p) {
         return '<div class="p"><span class="n">' + BL.esc(p.p) + '</span>' +
@@ -283,14 +285,66 @@
   }
 
 
-  function drawDashPlatformStrip(byPlat) {
-    const map = {};
-    (byPlat || []).forEach(function (p) { map[p.p] = p.n; });
-    $('dash-platform-strip').innerHTML = BL.PLATFORMS.map(function (p) {
-      return '<a class="dash-platform-pill" href="' + p.file + '" style="--pill1:' + p.c1 + ';--pill2:' + p.c2 + '">' +
-        BL.platformIconHTML(p, 'pill', p.name) +
-        '<span class="meta"><span class="name">' + BL.esc(p.name) + '</span><span class="count">' + (map[p.key] || 0).toLocaleString('th-TH') + ' รายการ / 30 วัน</span></span></a>';
-    }).join('');
+  /* ---------------- แถบหัวหน้าแรก ----------------
+     เลี่ยงการโชว์ตัวเลขซ้ำกับการ์ด KPI ด้านล่าง
+     โฟกัสที่ "ต้องทำอะไรต่อ" + "ข้อมูลอัปเดตล่าสุดเมื่อไหร่" แทน  */
+  function drawHero(st) {
+    const risky = (st.blocked || 0) + (st.high || 0);
+    const watch = st.watch || 0;
+
+    $('hero-date').textContent = new Date().toLocaleDateString('th-TH', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+    if (risky > 0) {
+      $('hero-head').innerHTML = 'มีลูกค้าที่ <b style="color:#FF8F8F">ห้ามส่ง COD</b> ' +
+        risky.toLocaleString('th-TH') + ' ราย';
+      $('hero-sub').textContent = 'จากลูกค้า ' + (st.customers || 0).toLocaleString('th-TH') +
+        ' รายในฐานข้อมูล · เฝ้าระวังอีก ' + watch.toLocaleString('th-TH') +
+        ' ราย — เช็คเบอร์ก่อนแพ็คทุกครั้งเพื่อกันการส่งซ้ำ';
+    } else if ((st.customers || 0) > 0) {
+      $('hero-head').textContent = 'ยังไม่มีลูกค้าที่ถึงเกณฑ์ห้ามส่ง';
+      $('hero-sub').textContent = 'มีลูกค้าในฐานข้อมูล ' + (st.customers || 0).toLocaleString('th-TH') +
+        ' ราย · เฝ้าระวัง ' + watch.toLocaleString('th-TH') + ' ราย';
+    } else {
+      $('hero-head').textContent = 'ยังไม่มีข้อมูลในระบบ';
+      $('hero-sub').textContent = 'เริ่มต้นที่เมนู “เพิ่มข้อมูล → นำเข้าจากไฟล์” เพื่ออัปรายงานตีกลับรอบแรก';
+    }
+  }
+
+  // นำเข้าล่าสุด + จำนวนครั้งที่ทีมเช็คเบอร์วันนี้ (ข้อมูลที่ไม่ซ้ำกับส่วนอื่นของหน้า)
+  async function loadHeroStatus() {
+    try {
+      const { data: b } = await sb.from('bl_batches')
+        .select('platform,file_name,row_inserted,created_at,uploaded_by')
+        .gt('row_inserted', 0).order('created_at', { ascending: false }).limit(1);
+      const last = b && b[0];
+      if (last) {
+        $('hero-last-import').textContent = last.platform + ' · ' +
+          (last.row_inserted || 0).toLocaleString('th-TH') + ' รายการ';
+        const d = new Date(last.created_at);
+        const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+        $('hero-last-when').textContent =
+          d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) +
+          ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) +
+          (days >= 1 ? ' (' + days + ' วันก่อน)' : ' (วันนี้)') +
+          (last.uploaded_by ? ' · ' + last.uploaded_by.split('@')[0] : '');
+      } else {
+        $('hero-last-import').textContent = 'ยังไม่เคยนำเข้า';
+        $('hero-last-when').textContent = 'อัปไฟล์รอบแรกที่เมนูเพิ่มข้อมูล';
+      }
+    } catch (e) {
+      $('hero-last-import').textContent = '—';
+      $('hero-last-when').textContent = 'อ่านประวัติไม่ได้';
+    }
+
+    try {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const { count } = await sb.from('bl_checks')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', today.toISOString());
+      $('hero-checks').textContent = (count || 0).toLocaleString('th-TH');
+    } catch (e) { $('hero-checks').textContent = '—'; }
   }
 
   async function loadTop() {
@@ -313,7 +367,7 @@
     }).join('');
   }
 
-  $('btn-reload').onclick = function () { loadDash(); loadTop(); BL.toast('รีเฟรชแล้ว'); };
+  $('btn-reload').onclick = function () { loadDash(); loadTop(); loadHeroStatus(); BL.toast('รีเฟรชแล้ว'); };
 
   /* ---------------- boot ---------------- */
   (async function () {
@@ -323,7 +377,7 @@
     $('app').classList.remove('hide');
     BL.renderNav('index.html');
     if (BL.isAdmin()) $('lc-users').classList.remove('hide');
-    loadDash(); loadTop();
+    loadDash(); loadTop(); loadHeroStatus();
   })();
 })();
 </script>
