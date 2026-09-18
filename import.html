@@ -12,6 +12,26 @@
   .stat div{background:#F8FAFF;border:1px solid var(--line);border-radius:10px;padding:9px 15px;font-size:13.5px}
   .stat div b{display:block;font-size:20px;color:var(--navy)}
   .bad{color:#b91c1c}
+  .platform-pick{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;margin-top:8px}
+  .platform-choice{appearance:none;border:1px solid var(--line);background:#fff;border-radius:16px;padding:16px;cursor:pointer;text-align:left;transition:.18s ease;box-shadow:var(--sh);font-family:inherit}
+  .platform-choice:hover{transform:translateY(-2px);box-shadow:var(--sh-hover);border-color:#c7d2e1}
+  .platform-choice.on{border-color:var(--pc);box-shadow:0 0 0 3px color-mix(in srgb,var(--pc) 16%,transparent),var(--sh-hover);background:linear-gradient(145deg,#fff,color-mix(in srgb,var(--pc) 5%,#fff))}
+  .platform-choice .pn{display:block;font-size:17px;font-weight:700;color:var(--navy);margin-top:8px}
+  .platform-choice .ps{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+  .platform-choice .plogo{height:28px;max-width:118px;display:flex;align-items:center}
+  .platform-choice .plogo img{display:block;max-width:100%;max-height:100%;object-fit:contain}
+  .platform-choice .plogo.icon-logo{gap:8px;max-width:none}
+  .platform-choice .plogo.icon-logo img{width:28px;height:28px}
+  .platform-choice .plogo.icon-logo b{font-size:17px;color:#0866FF}
+  .step-badge{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:9px;background:var(--navy);color:#fff;font-size:12px;margin-right:7px}
+  .selected-banner{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#f8fbff;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13px}
+  .selected-banner b{color:var(--navy)}
+  .match-ok{color:#15803d}.match-warn{color:#b45309}.match-bad{color:#b91c1c}
+  .auto-note{background:linear-gradient(135deg,#eef7ff,#f8fbff);border:1px solid #cfe2f8;border-radius:12px;padding:11px 13px;color:#36506f;font-size:13px;line-height:1.55;margin-bottom:14px}
+  .dashboard-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .dashboard-links a{text-decoration:none}
+  @media(max-width:760px){.platform-pick{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:430px){.platform-pick{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -25,10 +45,15 @@
     </div>
   </div>
 
-  <div class="tabs" id="tabs"></div>
+  <div class="card" id="platform-card">
+    <h2><span class="step-badge">1</span>เลือกแพลตฟอร์มที่จะอัปโหลด</h2>
+    <div class="sub">เลือกให้ตรงกับไฟล์ก่อน ระบบจะล็อกแพลตฟอร์มและจับคู่คอลัมน์ให้อัตโนมัติ</div>
+    <div class="platform-pick" id="platform-pick"></div>
+  </div>
 
-  <div class="card">
-    <h2>1. เลือกไฟล์</h2>
+  <div class="card hide" id="upload-card">
+    <h2><span class="step-badge">2</span>เลือกไฟล์</h2>
+    <div class="selected-banner" id="selected-banner"></div>
     <div class="dz" id="dz">
       <div style="font-size:30px">📄</div>
       <div><b>คลิกเพื่อเลือกไฟล์</b> หรือลากไฟล์มาวางตรงนี้</div>
@@ -45,19 +70,16 @@
   </div>
 
   <div class="card hide" id="card-map">
-    <h2>2. จับคู่คอลัมน์</h2>
-    <div class="sub">ตั้งครั้งเดียวแล้วกด “บันทึก Mapping” — ครั้งต่อไปไม่ต้องตั้งใหม่ (แยกตามแพลตฟอร์ม)</div>
+    <h2><span class="step-badge">3</span>ตรวจการจับคู่คอลัมน์</h2>
+    <div class="auto-note"><b>จับคู่อัตโนมัติจากโครงสร้างไฟล์ทั้ง 4 แพลตฟอร์มแล้ว</b><br>ปกติไม่ต้องแก้อะไรในส่วนนี้ หากรูปแบบไฟล์จากแพลตฟอร์มเปลี่ยนในอนาคตจึงค่อยปรับ Mapping</div>
+    <div id="file-match" class="sub" style="margin:-4px 0 12px">—</div>
     <div class="maps" id="maps"></div>
 
     <div style="border-top:1px dashed var(--line);margin:16px 0 14px"></div>
-    <h3 style="font-size:14.5px;margin-bottom:8px">แยกช่องทางอัตโนมัติ (ถ้าไฟล์เดียวมีหลายแพลตฟอร์ม)</h3>
-    <div class="sub">ไฟล์ JST มักมีคอลัมน์ช่องทางขายอยู่แล้ว — เลือกคอลัมน์นั้นที่นี่ ระบบจะแยกรายการเข้า
-      TikTok / Lazada / Shopee / Facebook ให้เอง · เว้นว่างไว้ = ทุกแถวเป็น “<span id="lbl-plat"></span>”</div>
-    <div class="row">
-      <div><label>คอลัมน์ช่องทางขาย</label><select id="p-col"></select></div>
-      <div style="flex:2"><label>สรุปการแยก (จะขึ้นหลังกดดูตัวอย่าง)</label>
-        <div id="p-split" class="sub" style="margin:0;padding-top:9px">—</div></div>
-    </div>
+    <h3 style="font-size:14.5px;margin-bottom:8px">แพลตฟอร์มปลายทาง</h3>
+    <div class="sub">ไฟล์รอบนี้จะถูกบันทึกเข้า <b id="lbl-plat"></b> เท่านั้น ตามแพลตฟอร์มที่เลือกในขั้นตอนแรก เพื่อป้องกันข้อมูลข้ามช่องทาง</div>
+    <select id="p-col" class="hide"></select>
+    <div id="p-split" class="sub" style="margin:0">—</div>
 
     <div style="border-top:1px dashed var(--line);margin:16px 0 14px"></div>
     <h3 style="font-size:14.5px;margin-bottom:8px">ตัวกรองเฉพาะแถวที่ “ตีกลับ”</h3>
@@ -74,7 +96,7 @@
   </div>
 
   <div class="card hide" id="card-prev">
-    <h2>3. ตรวจก่อนบันทึก</h2>
+    <h2><span class="step-badge">4</span>ตรวจก่อนบันทึก</h2>
     <div class="stat" id="stat"></div>
     <div class="note hide" id="warn"></div>
     <div class="tw" style="max-height:340px;margin-top:12px">
@@ -89,6 +111,7 @@
     <div style="margin-top:14px">
       <button class="btn red" id="btn-import">⬆️ บันทึกเข้าระบบ</button>
       <span class="sub" style="margin-left:10px" id="imp-hint"></span>
+      <div class="dashboard-links hide" id="dashboard-links"></div>
     </div>
   </div>
 
@@ -115,7 +138,7 @@
 <script>
 (function () {
   const sb = BL.sb, $ = function (id) { return document.getElementById(id); };
-  const PLATFORMS = ['JST', 'Lazada', 'Shopee', 'TikTok', 'Facebook', 'Offline'];
+  const PLATFORMS = ['TikTok', 'Lazada', 'Shopee', 'Facebook'];
   const FIELDS = [
     { k: 'phone',       t: 'เบอร์โทรลูกค้า', req: true },
     { k: 'name',        t: 'ชื่อผู้รับ' },
@@ -130,22 +153,48 @@
     { k: 'reason',      t: 'เหตุผล / สถานะ' }
   ];
 
-  let PLAT = 'JST';
+  let PLAT = null;
   let WB = null, HEADERS = [], ROWS = [], FILENAME = '';
   let MAPS = {};          // mapping ทุกแพลตฟอร์ม
   let PARSED = [];        // ผลลัพธ์พร้อมบันทึก
+  let MATCH_OK = false;   // ไฟล์ตรงกับแพลตฟอร์มที่เลือก
 
-  /* ---------------- tabs ---------------- */
-  function drawTabs() {
-    $('tabs').innerHTML = PLATFORMS.map(function (p) {
-      return '<button data-p="' + p + '"' + (p === PLAT ? ' class="on"' : '') + '>' + p + '</button>';
+  /* ---------------- เลือกแพลตฟอร์มก่อนอัป ---------------- */
+  function platformMeta(key) {
+    return BL.platformOf(key) || { key: key, name: key, c2: '#2E75B6', logo: '', icon: '' };
+  }
+
+  function pickerLogo(p) {
+    if (p.logoType === 'icon') {
+      return '<span class="plogo icon-logo"><img src="' + BL.esc(p.icon || p.logo) + '" alt=""><b>' + BL.esc(p.name) + '</b></span>';
+    }
+    return '<span class="plogo"><img src="' + BL.esc(p.logo || p.icon || '') + '" alt="' + BL.esc(p.name) + '"></span>';
+  }
+
+  function drawPlatformPicker() {
+    $('platform-pick').innerHTML = PLATFORMS.map(function (key) {
+      const p = platformMeta(key);
+      return '<button type="button" class="platform-choice' + (key === PLAT ? ' on' : '') + '" data-p="' + key + '" style="--pc:' + BL.esc(p.c2 || '#2E75B6') + '">' +
+        pickerLogo(p) + '<span class="pn">' + BL.esc(p.name) + '</span><span class="ps">เลือกช่องทางนี้ก่อนเลือกไฟล์</span></button>';
     }).join('');
-    Array.prototype.forEach.call($('tabs').children, function (b) {
-      b.onclick = function () {
-        PLAT = b.dataset.p; drawTabs(); fillMapUI(); loadBatches();
-        $('card-prev').classList.add('hide');
-      };
+    Array.prototype.forEach.call($('platform-pick').querySelectorAll('[data-p]'), function (b) {
+      b.onclick = function () { selectPlatform(b.dataset.p); };
     });
+  }
+
+  function selectPlatform(key) {
+    const changed = PLAT && PLAT !== key;
+    PLAT = key; MATCH_OK = false; PARSED = [];
+    drawPlatformPicker();
+    const p = platformMeta(PLAT);
+    $('upload-card').classList.remove('hide');
+    $('selected-banner').innerHTML = '<b>กำลังอัปโหลดเข้า ' + BL.esc(p.name) + '</b><span style="color:var(--muted)">ไฟล์ที่เลือกจะไม่ถูกแยกไปแพลตฟอร์มอื่น</span>';
+    $('card-prev').classList.add('hide');
+    $('dashboard-links').classList.add('hide');
+    if (changed && WB) { readSheet(); }
+    else fillMapUI();
+    loadBatches();
+    if (!WB) setTimeout(function(){ $('upload-card').scrollIntoView({behavior:'smooth',block:'start'}); }, 30);
   }
 
   /* ---------------- mapping ---------------- */
@@ -166,6 +215,7 @@
   }
 
   function fillMapUI() {
+    if (!PLAT) return;
     const m = MAPS[PLAT] || {};
     const f = m.fields || {};
     $('hrow').value = m.header_row || 1;
@@ -177,6 +227,67 @@
     $('f-words').value = m.filter_words || '';
     $('p-col').innerHTML = opts(f.platform_col);
     $('lbl-plat').textContent = PLAT;
+  }
+
+  /* โครงสร้างจริงของไฟล์ตัวอย่าง 4 แพลตฟอร์ม */
+  const PRESETS = {
+    Lazada: {
+      phone:['เบอร์โทร'], name:['ชื่อผู้ซื้อ'], order_no:['เลขออเดอร์ออนไลน์'], tracking_no:['เลขพัสดุ'],
+      reject_date:['หมายเหตุจากผู้ขาย'], order_date:['เวลาสั่งซื้อ'], cod_amount:['จำนวนเงินที่ควรได้รับ'],
+      shop:['ร้านค้า'], address:['ที่อยู่ใบแจ้งหนี้'], reason:['ป้ายแท็ก']
+    },
+    Shopee: {
+      phone:['เบอร์โทร'], name:['ชื่อผู้ซื้อ'], order_no:['เลขออเดอร์ออนไลน์'], tracking_no:['เลขพัสดุ'],
+      reject_date:['หมายเหตุจากผู้ขาย'], order_date:['เวลาสั่งซื้อ'], cod_amount:['จำนวนเงินที่ควรได้รับ'],
+      shop:['ร้านค้า'], address:['ที่อยู่ใบแจ้งหนี้'], reason:['ป้ายแท็ก']
+    },
+    Facebook: {
+      phone:['เบอร์โทร'], name:['ผู้รับ','ชื่อผู้ซื้อ'], order_no:['หมายเลขคำสั่งซื้อออนไลน์','เลขออเดอร์ออนไลน์'], tracking_no:['เลขพัสดุ'],
+      reject_date:['หมายเหตุจากผู้ขาย'], order_date:['เวลาสั่งซื้อ'], cod_amount:['ยอด COD','จำนวนเงินที่ควรได้รับ'],
+      shop:['ร้านค้า'], province:['จังหวัด'], address:['ที่อยู่ผู้รับ'], reason:['ป้ายแท็ก']
+    },
+    TikTok: {
+      phone:['เบอร์โทร'], name:['ผู้รับ'], order_no:['เลขออเดอร์ออนไลน์'], tracking_no:['เลขพัสดุ'],
+      reject_date:['หมายเหตุจากผู้ขาย'], cod_amount:['จำนวนเงินที่ควรได้รับ'], province:['จังหวัด'], address:['ที่อยู่ผู้รับ']
+    }
+  };
+
+  function normHeader(s) {
+    return String(s || '').replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '').toLowerCase();
+  }
+  function findHeader(aliases) {
+    const a = aliases || [];
+    for (let j = 0; j < a.length; j++) {
+      const wanted = normHeader(a[j]);
+      for (let i = 0; i < HEADERS.length; i++) if (normHeader(HEADERS[i]) === wanted) return HEADERS[i];
+    }
+    return '';
+  }
+  function applyPreset() {
+    if (!PLAT || !PRESETS[PLAT] || !HEADERS.length) return;
+    const base = MAPS[PLAT] || { platform: PLAT };
+    const fields = {};
+    Object.keys(PRESETS[PLAT]).forEach(function (k) {
+      const h = findHeader(PRESETS[PLAT][k]); if (h) fields[k] = h;
+    });
+    MAPS[PLAT] = { platform: PLAT, header_row: 1, fields: fields, filter_field: '', filter_words: '', updated_at: new Date().toISOString() };
+  }
+
+  function detectFilePlatform() {
+    const hs = HEADERS.map(normHeader);
+    function has(x) { return hs.indexOf(normHeader(x)) >= 0; }
+    const platformHeader = findHeader(['แพลตฟอร์ม']);
+    if (platformHeader && ROWS.length) {
+      const sample = ROWS.slice(0, 40).map(function(r){ return String(r[platformHeader] || '').toLowerCase(); }).join(' ');
+      if (sample.indexOf('shopee') >= 0) return 'Shopee';
+      if (sample.indexOf('lazada') >= 0) return 'Lazada';
+      if (sample.indexOf('facebook') >= 0) return 'Facebook';
+    }
+    if (has('ยอด COD') && has('จังหวัด') && has('ผู้รับ')) return 'Facebook';
+    if (has('วันที่จัดส่ง') && has('สถานะขนส่ง') && has('แพลตฟอร์ม')) return 'Shopee';
+    if (has('เวลาสั่งซื้อ') && has('ร้านค้า') && has('แพลตฟอร์ม')) return 'Lazada';
+    if (has('ผู้รับ') && has('จังหวัด') && !has('แพลตฟอร์ม')) return 'TikTok';
+    return null;
   }
 
   // แปลงค่าในคอลัมน์ช่องทางให้เป็นชื่อแพลตฟอร์มมาตรฐาน
@@ -215,6 +326,7 @@
   }
 
   $('btn-savemap').onclick = async function () {
+    if (!PLAT) return BL.toast('เลือกแพลตฟอร์มก่อน', 'warn');
     const m = readMapUI();
     const { error } = await sb.from('bl_mappings').upsert(m, { onConflict: 'platform' });
     if (error) return BL.toast(error.message, 'err');
@@ -233,6 +345,7 @@
   $('file').onchange = function () { if (this.files[0]) handleFile(this.files[0]); };
 
   function handleFile(f) {
+    if (!PLAT) return BL.toast('เลือกแพลตฟอร์มก่อนเลือกไฟล์', 'warn');
     FILENAME = f.name;
     const rd = new FileReader();
     rd.onload = function (e) {
@@ -243,7 +356,8 @@
         }).join('');
         const m = MAPS[PLAT] || {};
         if (m.sheet_name && WB.SheetNames.indexOf(m.sheet_name) >= 0) $('sheet').value = m.sheet_name;
-        $('hrow').value = m.header_row || 1;
+        // ไฟล์มาตรฐาน 4 แพลตฟอร์มที่รองรับในหน้านี้ใช้หัวตารางแถวแรก
+        $('hrow').value = 1;
         $('file-info').classList.remove('hide');
         $('dz').innerHTML = '<div style="font-size:26px">✅</div><div><b>' + BL.esc(f.name) +
           '</b></div><div style="font-size:12.5px;margin-top:3px">คลิกเพื่อเปลี่ยนไฟล์</div>' +
@@ -274,21 +388,84 @@
     }).filter(function (o) {
       return Object.keys(o).some(function (k) { return String(o[k]).trim() !== ''; });
     });
+    const detected = detectFilePlatform();
+    MATCH_OK = !detected || detected === PLAT;
+    const fm = $('file-match');
+    if (detected && detected !== PLAT) {
+      fm.className = 'sub match-bad';
+      fm.innerHTML = '✕ ไฟล์นี้ดูเหมือนเป็น <b>' + BL.esc(detected) + '</b> แต่ตอนนี้เลือก <b>' + BL.esc(PLAT) + '</b> — กรุณาเลือกแพลตฟอร์มให้ตรงก่อนบันทึก';
+      $('card-prev').classList.add('hide');
+    } else if (detected) {
+      fm.className = 'sub match-ok';
+      fm.innerHTML = '✓ ตรวจพบโครงสร้างไฟล์ <b>' + BL.esc(detected) + '</b> ตรงกับแพลตฟอร์มที่เลือก';
+    } else {
+      fm.className = 'sub match-warn';
+      fm.innerHTML = '⚠ ไม่สามารถระบุแพลตฟอร์มจากหัวตารางได้ชัดเจน ระบบจะใช้แพลตฟอร์มที่เลือก: <b>' + BL.esc(PLAT) + '</b>';
+    }
+    applyPreset();
     $('card-map').classList.remove('hide');
     fillMapUI();
-    BL.toast('อ่านไฟล์แล้ว ' + ROWS.length.toLocaleString('th-TH') + ' แถว');
+    BL.toast('อ่านไฟล์แล้ว ' + ROWS.length.toLocaleString('th-TH') + ' แถว · จับคู่คอลัมน์อัตโนมัติแล้ว');
   }
   $('sheet').onchange = readSheet;
   $('btn-reread').onclick = readSheet;
 
   /* ---------------- แปลงข้อมูล ---------------- */
+  function smartDate(v) {
+    const direct = BL.toDate(v);
+    if (direct) return direct;
+    const s = String(v || '');
+    let m = s.match(/(20\d{2})[\/-](\d{1,2})[\/-](\d{1,2})/);
+    if (m) return m[1] + '-' + String(+m[2]).padStart(2,'0') + '-' + String(+m[3]).padStart(2,'0');
+    m = s.match(/(\d{1,2})[\/-](\d{1,2})[\/-](25\d{2}|20\d{2})/);
+    if (m) { let y = +m[3]; if (y > 2400) y -= 543; return y + '-' + String(+m[2]).padStart(2,'0') + '-' + String(+m[1]).padStart(2,'0'); }
+    return null;
+  }
+  function monthFallback() {
+    const m = String(FILENAME || '').match(/เดือน\s*(\d{1,2})/i);
+    if (!m) return new Date().toISOString().slice(0,10);
+    const mo = Math.min(12, Math.max(1, +m[1]));
+    const y = new Date().getFullYear();
+    const d = new Date(y, mo, 0);
+    return y + '-' + String(mo).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function hash8(s) {
+    let h = 2166136261; s = String(s || '');
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16).padStart(8,'0');
+  }
+  function anonymousPhone(r, rawPhone, name, address, orderNo) {
+    const digits = String(rawPhone || '').replace(/\D/g,'');
+    const suffix = digits.slice(-2) || 'XX';
+    let identity = rawPhone + '|' + (name || '') + '|' + (address || '');
+    if (PLAT === 'Shopee') identity = (r[findHeader(['บัญชีผู้ซื้อ'])] || r[findHeader(['ชื่อผู้ซื้อ'])] || identity);
+    if (PLAT === 'Lazada') identity = (r[findHeader(['บัญชีผู้ซื้อ'])] || identity);
+    if (!String(identity).trim()) identity = orderNo || JSON.stringify(r);
+    return 'ANON-' + String(PLAT || 'PLATFORM').toUpperCase() + '-' + suffix + '-' + hash8(identity);
+  }
+  function displayPhone(phone, raw) {
+    if (String(phone || '').indexOf('ANON-') === 0) {
+      const m = String(phone).match(/^ANON-[^-]+-([^-]+)-/);
+      return 'ปิดบัง ••' + (m ? m[1] : '') ;
+    }
+    return BL.fmtPhone(phone || BL.normPhone(raw));
+  }
+  function guessProvince(r, f) {
+    if (f.province && r[f.province]) return String(r[f.province]).trim();
+    if (PLAT === 'Lazada' && f.address && r[f.address]) {
+      const a = String(r[f.address]).split(',').map(function(x){return x.trim();}).filter(Boolean);
+      if (a.length >= 5) return a[a.length - 4];
+    }
+    return null;
+  }
+
   function buildRows() {
+    if (!PLAT) { BL.toast('เลือกแพลตฟอร์มก่อน', 'warn'); return null; }
+    if (!MATCH_OK) { BL.toast('ไฟล์ไม่ตรงกับแพลตฟอร์มที่เลือก', 'err'); return null; }
     const m = readMapUI(), f = m.fields;
-    if (!f.phone) { BL.toast('ต้องเลือกคอลัมน์ “เบอร์โทรลูกค้า” ก่อน', 'err'); return null; }
-    const words = (m.filter_words || '').split(',').map(function (w) { return w.trim().toLowerCase(); })
-                    .filter(Boolean);
-    const today = new Date().toISOString().slice(0, 10);
-    const res = { rows: [], total: ROWS.length, filtered: 0, badPhone: 0, dupInFile: 0, split: {} };
+    if (!f.order_no && !f.tracking_no) { BL.toast('ต้องมีเลขออเดอร์หรือเลขพัสดุอย่างน้อย 1 คอลัมน์', 'err'); return null; }
+    const words = (m.filter_words || '').split(',').map(function (w) { return w.trim().toLowerCase(); }).filter(Boolean);
+    const res = { rows: [], total: ROWS.length, filtered: 0, badPhone: 0, anonPhone: 0, dupInFile: 0, split: {} };
     const seen = {};
 
     ROWS.forEach(function (r) {
@@ -297,31 +474,37 @@
         if (!words.some(function (w) { return v.indexOf(w) >= 0; })) return;
       }
       res.filtered++;
-      const rawPhone = r[f.phone];
-      const phone = BL.normPhone(rawPhone);
-      if (!phone) { res.badPhone++; return; }
-
-      const plat = f.platform_col ? normPlatform(r[f.platform_col], PLAT) : PLAT;
-      res.split[plat] = (res.split[plat] || 0) + 1;
-
+      const rawPhone = f.phone ? r[f.phone] : '';
+      let phone = BL.normPhone(rawPhone);
+      const name = f.name ? String(r[f.name] || '').trim() : null;
+      const address = f.address ? String(r[f.address] || '').trim() : null;
+      const orderNo = f.order_no ? String(r[f.order_no] || '').trim() : null;
+      if (!phone) {
+        if (rawPhone || orderNo) { phone = anonymousPhone(r, rawPhone, name, address, orderNo); res.anonPhone++; }
+        else { res.badPhone++; return; }
+      }
+      const orderDate = f.order_date ? smartDate(r[f.order_date]) : null;
+      const rejectDate = f.reject_date ? smartDate(r[f.reject_date]) : null;
       const row = {
         phone: phone,
         phone_raw: String(rawPhone || '').trim(),
-        name:        f.name        ? String(r[f.name] || '').trim()        : null,
-        address:     f.address     ? String(r[f.address] || '').trim()     : null,
-        province:    f.province    ? String(r[f.province] || '').trim()    : null,
-        platform:    plat,
-        shop:        f.shop        ? String(r[f.shop] || '').trim()        : null,
-        order_no:    f.order_no    ? String(r[f.order_no] || '').trim()    : null,
+        name: name,
+        address: address,
+        province: guessProvince(r, f),
+        platform: PLAT,
+        shop: f.shop ? String(r[f.shop] || '').trim() : (PLAT === 'TikTok' ? 'TikTok Shop' : null),
+        order_no: orderNo,
         tracking_no: f.tracking_no ? String(r[f.tracking_no] || '').trim() : null,
-        order_date:  f.order_date  ? BL.toDate(r[f.order_date])            : null,
-        reject_date: f.reject_date ? (BL.toDate(r[f.reject_date]) || today) : today,
-        cod_amount:  f.cod_amount  ? BL.num(r[f.cod_amount])               : null,
-        reason:      f.reason      ? String(r[f.reason] || '').trim()      : null
+        order_date: orderDate,
+        reject_date: rejectDate || orderDate || monthFallback(),
+        cod_amount: f.cod_amount ? BL.num(r[f.cod_amount]) : null,
+        reason: f.reason ? String(r[f.reason] || '').trim() : 'ตีกลับ',
+        source: 'import'
       };
-      const key = plat + '|' + (row.order_no || '') + '|' + (row.tracking_no || '') + '|' + phone;
+      const key = PLAT + '|' + (row.order_no || '') + '|' + (row.tracking_no || '') + '|' + phone;
       if (seen[key]) { res.dupInFile++; return; }
       seen[key] = 1;
+      res.split[PLAT] = (res.split[PLAT] || 0) + 1;
       res.rows.push(row);
     });
     return res;
@@ -335,12 +518,13 @@
       '<div>แถวในไฟล์<b>' + r.total.toLocaleString('th-TH') + '</b></div>' +
       '<div>เข้าเงื่อนไขตีกลับ<b>' + r.filtered.toLocaleString('th-TH') + '</b></div>' +
       '<div>พร้อมบันทึก<b style="color:#16a34a">' + r.rows.length.toLocaleString('th-TH') + '</b></div>' +
-      '<div>เบอร์ใช้ไม่ได้<b class="bad">' + r.badPhone.toLocaleString('th-TH') + '</b></div>' +
+      '<div>เบอร์เต็ม<b>' + Math.max(0, r.rows.length - r.anonPhone).toLocaleString('th-TH') + '</b></div>' +
+      '<div>เบอร์ถูกปิดบัง<b style="color:#b45309">' + r.anonPhone.toLocaleString('th-TH') + '</b></div>' +
       '<div>ซ้ำในไฟล์เดียวกัน<b>' + r.dupInFile.toLocaleString('th-TH') + '</b></div>';
     const w = $('warn');
-    if (r.badPhone > 0) {
-      w.innerHTML = '⚠️ มี ' + r.badPhone + ' แถวที่เบอร์โทรอ่านไม่ได้ (ว่าง/ไม่ใช่เบอร์ไทย) ระบบจะข้ามแถวเหล่านี้ ' +
-        'หากเยอะผิดปกติให้ตรวจว่าเลือกคอลัมน์เบอร์ถูกหรือยัง';
+    if (r.anonPhone > 0 || r.badPhone > 0) {
+      w.innerHTML = (r.anonPhone > 0 ? 'ℹ️ มี <b>' + r.anonPhone.toLocaleString('th-TH') + ' แถว</b>ที่แพลตฟอร์มปิดบังเบอร์โทร ระบบจะสร้างรหัสลูกค้าแบบไม่เปิดเผยเพื่อให้สถิติ Dashboard นับรายการได้ โดย <b>ไม่สร้างเบอร์โทรปลอม</b>.<br>' : '') +
+        (r.badPhone > 0 ? '⚠️ ข้าม ' + r.badPhone.toLocaleString('th-TH') + ' แถวที่ไม่มีทั้งเบอร์และเลขออเดอร์อ้างอิง' : '');
       w.classList.remove('hide');
     } else w.classList.add('hide');
 
@@ -353,7 +537,7 @@
 
     $('tb-prev').innerHTML = r.rows.slice(0, 60).map(function (x) {
       return '<tr>' +
-        '<td class="mono">' + BL.fmtPhone(x.phone) + '</td>' +
+        '<td class="mono">' + BL.esc(displayPhone(x.phone, x.phone_raw)) + '</td>' +
         '<td>' + BL.esc(x.name || '-') + '</td>' +
         '<td><span class="tag">' + BL.esc(x.platform) + '</span></td>' +
         '<td>' + BL.esc(x.province || '-') + '</td>' +
@@ -405,7 +589,11 @@
 
       BL.toast('บันทึกสำเร็จ ' + inserted.toLocaleString('th-TH') + ' รายการใหม่ (ซ้ำ ' +
                (PARSED.length - inserted).toLocaleString('th-TH') + ')');
-      $('card-prev').classList.add('hide');
+      const pp = platformMeta(PLAT);
+      $('dashboard-links').innerHTML = '<a class="btn ghost sm" href="index.html">ดู Dashboard รวม</a>' +
+        '<a class="btn sm" href="' + BL.esc(pp.file || 'index.html') + '">ดู Dashboard ' + BL.esc(pp.name) + '</a>';
+      $('dashboard-links').classList.remove('hide');
+      $('imp-hint').textContent = 'บันทึกแล้ว ' + inserted.toLocaleString('th-TH') + ' รายการใหม่ · Dashboard รวมและหน้าแพลตฟอร์มจะอ่านข้อมูลชุดเดียวกัน';
       loadBatches();
     } catch (e) {
       BL.toast('บันทึกไม่สำเร็จ: ' + e.message, 'err');
@@ -416,8 +604,9 @@
 
   /* ---------------- ประวัติ batch ---------------- */
   async function loadBatches() {
-    const { data, error } = await sb.from('bl_batches').select('*')
-      .order('created_at', { ascending: false }).limit(60);
+    let q = sb.from('bl_batches').select('*').order('created_at', { ascending: false }).limit(60);
+    if (PLAT) q = q.eq('platform', PLAT);
+    const { data, error } = await q;
     const tb = $('tb-batch');
     if (error) { tb.innerHTML = '<tr><td colspan="8" class="empty">' + BL.esc(error.message) + '</td></tr>'; return; }
     if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">ยังไม่มีประวัติ</td></tr>'; return; }
@@ -455,10 +644,10 @@
     BL.renderNav('import.html');
     const qp = new URLSearchParams(location.search).get('p');
     if (qp && PLATFORMS.indexOf(qp) >= 0) PLAT = qp;
-    drawTabs();
     await loadMaps();
-    fillMapUI();
-    loadBatches();
+    drawPlatformPicker();
+    if (PLAT) selectPlatform(PLAT);
+    else { $('upload-card').classList.add('hide'); loadBatches(); }
   })();
 })();
 </script>
