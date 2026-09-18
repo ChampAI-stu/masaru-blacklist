@@ -248,7 +248,8 @@
     if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="10" class="empty">ยังไม่มีรายการที่คีย์มือ</td></tr>'; return; }
     const myEmail = BL.me() ? BL.me().email : '';
     tb.innerHTML = data.map(function (r) {
-      const canDel = BL.isAdmin() || r.created_by === myEmail;
+      const canDel = true; // พนักงานลบรายการที่คีย์มือได้ (ดูผู้คีย์ได้จากคอลัมน์ "ผู้คีย์")
+      void myEmail;
       return '<tr>' +
         '<td style="font-size:12.5px">' + new Date(r.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) + '</td>' +
         '<td class="mono"><a href="check.html?q=' + r.phone + '" target="_blank" style="color:#2E75B6;font-weight:600">' +
