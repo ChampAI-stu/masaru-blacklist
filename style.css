@@ -996,3 +996,78 @@ html[data-platform="Facebook"] .logo-mark.hero .logo-label{color:#fff!important}
   .dash-mini{min-height:78px!important}
   .dash-mini b{font-size:20px!important}
 }
+
+/* ======================================================================
+   Dashboard hero size reduction — make top card compact and not full-page
+   ====================================================================== */
+.dash-hero{
+  max-width:1240px!important;
+  margin:0 auto 14px!important;
+  padding:18px 20px 16px!important;
+  border-radius:22px!important;
+  gap:14px!important;
+  grid-template-columns:minmax(0,1fr) 520px!important;
+  align-items:start!important;
+}
+.dash-hero-copy{max-width:620px!important}
+.dash-eyebrow{padding:5px 9px!important;font-size:10px!important}
+.dash-hero h2{
+  font-size:19px!important;
+  line-height:1.22!important;
+  margin:10px 0 8px!important;
+  max-width:560px!important;
+}
+.dash-hero p{
+  font-size:12px!important;
+  line-height:1.55!important;
+  margin:0 0 12px!important;
+  max-width:560px!important;
+}
+.dash-actions{gap:8px!important}
+.dash-actions .btn,
+.dash-actions .btn.ghost{
+  min-height:38px!important;
+  padding:8px 14px!important;
+  font-size:12.5px!important;
+  border-radius:10px!important;
+}
+.dash-hero-board{gap:8px!important}
+.dash-mini-grid{gap:8px!important}
+.dash-mini{
+  min-height:72px!important;
+  padding:10px 12px!important;
+  border-radius:14px!important;
+}
+.dash-mini span{font-size:10.8px!important}
+.dash-mini b{font-size:18px!important;margin-top:3px!important}
+.dash-platform-strip{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important;
+}
+.dash-platform-pill{
+  padding:8px 10px!important;
+  border-radius:13px!important;
+  gap:8px!important;
+  min-height:54px!important;
+}
+.dash-platform-pill .name{font-size:11.8px!important;line-height:1.2!important}
+.dash-platform-pill .count{font-size:10.6px!important;line-height:1.2!important}
+.dash-platform-pill .logo-mark.pill,
+.dash-platform-pill .platform-mini-logo.pill{width:20px!important;height:20px!important}
+
+@media(max-width:1280px){
+  .dash-hero{max-width:100%!important;grid-template-columns:minmax(0,1fr) 460px!important}
+}
+@media(max-width:1100px){
+  .dash-hero{grid-template-columns:1fr!important}
+  .dash-hero-copy{max-width:100%!important}
+}
+@media(max-width:720px){
+  .dash-hero{padding:14px 14px 12px!important;border-radius:18px!important}
+  .dash-hero h2{font-size:17px!important}
+  .dash-hero p{font-size:11.6px!important}
+  .dash-mini{min-height:68px!important}
+  .dash-mini b{font-size:17px!important}
+  .dash-platform-strip{grid-template-columns:1fr!important}
+}
