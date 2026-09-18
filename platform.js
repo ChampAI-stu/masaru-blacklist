@@ -7,7 +7,7 @@
   const sb = BL.sb, $ = function (id) { return document.getElementById(id); };
   const KEY = window.BL_PLATFORM;
   const P = BL.platformOf(KEY) || { key: KEY, name: KEY, c1: '#1A2942', c2: '#2E3F63', ic: '•', file: '', logo: '', icon: '', hero: '', vibe: '' };
-  let ROWS = [];
+  let ROWS = [], PAGE = 1, PER = 100;
 
   document.documentElement.style.setProperty('--p1', P.c1);
   document.documentElement.style.setProperty('--p2', P.c2);
@@ -74,12 +74,24 @@
           '<div style="flex:0"><button class="btn" id="btn-find">ค้นหา</button></div>' +
           '<div style="flex:0"><button class="btn gold" id="btn-xls">⬇️ Excel</button></div>' +
         '</div>' +
-        '<div class="sub" id="cnt"></div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<div class="sub" id="cnt" style="margin:0"></div>' +
+          '<div style="display:flex;align-items:center;gap:7px;font-size:13px;color:#6B7280">' +
+            '<span>แสดงหน้าละ</span>' +
+            '<select id="per" style="width:auto;padding:5px 8px;font-size:13px">' +
+              '<option value="100" selected>100</option><option value="200">200</option>' +
+              '<option value="500">500</option><option value="1000">1000</option>' +
+            '</select>' +
+            '<span>รายการ</span>' +
+          '</div>' +
+        '</div>' +
         '<div class="tw"><table><thead><tr>' +
         '<th>วันที่ตีกลับ</th><th>เบอร์</th><th>ชื่อ</th><th>ร้าน</th><th>เลขออเดอร์</th>' +
         '<th>เลขพัสดุ</th><th>จังหวัด</th><th class="num">COD</th><th>เหตุผล</th><th>ที่มา</th>' +
         '<th style="width:56px"></th>' +
         '</tr></thead><tbody id="tb"><tr><td colspan="11" class="empty">กำลังโหลด…</td></tr></tbody></table></div>' +
+        '<div id="pager" style="display:flex;align-items:center;justify-content:center;' +
+          'gap:6px;flex-wrap:wrap;margin-top:14px"></div>' +
       '</div>';
   }
 
@@ -196,6 +208,7 @@
         }
         return b;
       });
+      PAGE = 1;
       drawRows();
     } catch (e) {
       $('tb').innerHTML = '<tr><td colspan="11" class="empty">' + BL.esc(e.message) + '</td></tr>';
@@ -203,10 +216,25 @@
   }
 
   function drawRows() {
-    $('cnt').textContent = 'พบ ' + ROWS.length.toLocaleString('th-TH') + ' รายการ' +
-      (ROWS.length > 1500 ? ' (แสดง 1,500 รายการแรก — โหลด Excel เพื่อดูทั้งหมด)' : '');
-    if (!ROWS.length) { $('tb').innerHTML = '<tr><td colspan="11" class="empty">ไม่พบรายการ</td></tr>'; return; }
-    $('tb').innerHTML = ROWS.slice(0, 1500).map(function (r) {
+    const total = ROWS.length;
+    const pages = Math.max(1, Math.ceil(total / PER));
+    if (PAGE > pages) PAGE = pages;
+    if (PAGE < 1) PAGE = 1;
+    const start = (PAGE - 1) * PER;
+    const slice = ROWS.slice(start, start + PER);
+
+    if (!total) {
+      $('cnt').textContent = '';
+      $('tb').innerHTML = '<tr><td colspan="11" class="empty">ไม่พบรายการ</td></tr>';
+      $('pager').innerHTML = '';
+      return;
+    }
+    $('cnt').innerHTML = 'พบ <b>' + total.toLocaleString('th-TH') + '</b> รายการ · ' +
+      'แสดงรายการที่ ' + (start + 1).toLocaleString('th-TH') + '–' +
+      (start + slice.length).toLocaleString('th-TH') +
+      ' (หน้า ' + PAGE + ' จาก ' + pages + ')';
+
+    $('tb').innerHTML = slice.map(function (r) {
       return '<tr>' +
         '<td>' + BL.thDate(r.reject_date) + '</td>' +
         '<td class="mono"><a href="check.html?q=' + r.phone + '" target="_blank" ' +
@@ -226,6 +254,45 @@
     Array.prototype.forEach.call($('tb').querySelectorAll('[data-del]'), function (b) {
       b.onclick = function () { delRow(Number(b.dataset.del)); };
     });
+
+    drawPager(pages);
+  }
+
+  /* ---------------- แบ่งหน้า ---------------- */
+  function drawPager(pages) {
+    if (pages <= 1) { $('pager').innerHTML = ''; return; }
+
+    // แสดงเลขหน้าแบบหน้าต่างเลื่อน: 1 … 4 5 [6] 7 8 … 20
+    const win = [];
+    const push = function (n) { if (win.indexOf(n) < 0 && n >= 1 && n <= pages) win.push(n); };
+    push(1); push(2);
+    for (let i = PAGE - 2; i <= PAGE + 2; i++) push(i);
+    push(pages - 1); push(pages);
+    win.sort(function (a, b) { return a - b; });
+
+    let html = btn('« แรก', 1, PAGE === 1) + btn('‹ ก่อนหน้า', PAGE - 1, PAGE === 1);
+    let prev = 0;
+    win.forEach(function (n) {
+      if (prev && n - prev > 1) html += '<span style="color:#9aa5b5;padding:0 3px">…</span>';
+      html += '<button class="btn sm' + (n === PAGE ? ' red' : ' ghost') +
+              '" data-go="' + n + '" style="min-width:38px">' + n + '</button>';
+      prev = n;
+    });
+    html += btn('ถัดไป ›', PAGE + 1, PAGE === pages) + btn('ท้ายสุด »', pages, PAGE === pages);
+    $('pager').innerHTML = html;
+
+    Array.prototype.forEach.call($('pager').querySelectorAll('[data-go]'), function (b) {
+      b.onclick = function () {
+        PAGE = Number(b.dataset.go);
+        drawRows();
+        const tw = $('tb').closest('.tw');
+        if (tw) { tw.scrollTop = 0; tw.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      };
+    });
+  }
+  function btn(label, go, disabled) {
+    return '<button class="btn sm ghost" data-go="' + go + '"' + (disabled ? ' disabled' : '') +
+           '>' + label + '</button>';
   }
 
   // ลบรายการเดียวจากตาราง (เฉพาะผู้ดูแลระบบ) แล้วคำนวณความเสี่ยงของเบอร์นั้นใหม่
@@ -275,6 +342,7 @@
     $('btn-find').onclick = loadRows;
     $('btn-xls').onclick = exportXls;
     $('q').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadRows(); });
+    $('per').onchange = function () { PER = Number(this.value) || 100; PAGE = 1; drawRows(); };
 
     loadStats();
     loadRows();
