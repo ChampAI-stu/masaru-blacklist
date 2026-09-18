@@ -262,9 +262,8 @@
         { f: 'import.html', t: '⬆️  นำเข้าจากไฟล์' },
         { f: 'add.html',    t: '✍️  คีย์รายการเอง' } ] },
     { f: 'blacklist.html', t: 'จัดการ Blacklist' },
-    { menu: 'ผู้ดูแล', admin: true, items: [
-        { f: 'users.html',  t: '👥  ผู้ใช้งาน' },
-        { f: 'manage.html', t: '🗑  ลบ / จัดการข้อมูล' } ] }
+    { f: 'manage.html',    t: 'ลบ / จัดการข้อมูล' },
+    { f: 'users.html',     t: 'ผู้ใช้งาน', admin: true }
   ];
 
   function renderNav(active) {
