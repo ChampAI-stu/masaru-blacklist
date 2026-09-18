@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ลบ / จัดการข้อมูล — MASARU BLACKLIST</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .danger{border-color:#f3c2c6!important;background:linear-gradient(180deg,#fffafa,#fff)}
+  .danger > h2::before{background:#b91c1c!important}
+  .count-pill{display:inline-block;background:#FEF2F2;border:1px solid #f3c2c6;color:#b91c1c;
+              border-radius:99px;padding:5px 14px;font-size:14px;font-weight:700;margin-left:8px}
+  .count-pill.zero{background:#F1F5F9;border-color:var(--line);color:var(--muted)}
+  .confirm-box{border:1px dashed #e4b4b8;border-radius:12px;padding:13px 15px;margin-top:12px;background:#fff}
+  .confirm-box label{color:#b91c1c;font-weight:600}
+  .sel-col{width:38px;text-align:center}
+  .kill-list{display:flex;flex-direction:column;gap:9px}
+  .kill-row{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;
+            padding:11px 14px;background:#fff;flex-wrap:wrap}
+  .kill-row .nm{flex:1;min-width:190px;font-size:14px}
+  .kill-row .nm b{color:var(--navy)}
+  .kill-row .nm span{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+</style>
+</head>
+<body>
+<header id="nav"></header>
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>ลบ / จัดการข้อมูล</h1>
+      <p>ลบข้อมูลตีกลับแบบเจาะจง หรือล้างเพื่อเริ่มนำเข้าใหม่ — เฉพาะผู้ดูแลระบบ</p>
+    </div>
+    <button class="btn ghost sm" id="btn-refresh">รีเฟรชตัวเลข</button>
+  </div>
+
+  <div class="note" style="margin-bottom:16px">
+    ⚠️ การลบที่นี่ <b>ย้อนกลับไม่ได้</b> ทุกครั้งที่ลบเสร็จ ระบบจะคำนวณระดับความเสี่ยงของลูกค้าใหม่ให้อัตโนมัติ
+  </div>
+
+  <!-- ภาพรวม -->
+  <div class="grid g4" style="margin-bottom:18px">
+    <div class="kpi r"><div class="l">รายการตีกลับทั้งหมด</div><div class="v" id="k-rej">–</div><div class="s">แถว</div></div>
+    <div class="kpi b"><div class="l">ลูกค้าในฐานข้อมูล</div><div class="v" id="k-cus">–</div><div class="s">ราย</div></div>
+    <div class="kpi g"><div class="l">รอบนำเข้า</div><div class="v" id="k-bat">–</div><div class="s">รอบ</div></div>
+    <div class="kpi o"><div class="l">ตั้งค่าเอง (บล็อก/ยกเว้น)</div><div class="v" id="k-ovr">–</div><div class="s">เบอร์</div></div>
+  </div>
+
+  <!-- 1. ลบตามแพลตฟอร์ม -->
+  <div class="card danger">
+    <h2>ลบตามแพลตฟอร์ม</h2>
+    <div class="sub">ใช้เมื่ออัปไฟล์ผิดช่องทาง หรืออยากนำเข้าช่องทางนั้นใหม่ทั้งหมด</div>
+    <div class="kill-list" id="plat-list"></div>
+  </div>
+
+  <!-- 2. ลบตามช่วงวันที่ -->
+  <div class="card danger">
+    <h2>ลบตามช่วงวันที่</h2>
+    <div class="sub">อ้างอิง “วันที่ตีกลับ” — เว้นแพลตฟอร์มไว้ = ลบทุกช่องทางในช่วงนั้น</div>
+    <div class="row">
+      <div><label>ตั้งแต่วันที่</label><input id="d1" type="date"></div>
+      <div><label>ถึงวันที่</label><input id="d2" type="date"></div>
+      <div><label>แพลตฟอร์ม</label><select id="d-plat"><option value="">ทุกแพลตฟอร์ม</option></select></div>
+      <div style="flex:0"><button class="btn ghost" id="btn-count-date">นับก่อน</button></div>
+      <div style="flex:0"><button class="btn red" id="btn-del-date" disabled>ลบช่วงนี้</button></div>
+    </div>
+    <div style="margin-top:10px">ผลการนับ <span class="count-pill zero" id="pill-date">ยังไม่ได้นับ</span></div>
+  </div>
+
+  <!-- 3. ลบรายรายการ -->
+  <div class="card danger">
+    <h2>ค้นหาแล้วลบรายรายการ</h2>
+    <div class="sub">ค้นด้วยเบอร์ / ชื่อ / เลขออเดอร์ / เลขพัสดุ แล้วติ๊กเฉพาะแถวที่ต้องการลบ</div>
+    <div class="row" style="margin-bottom:12px">
+      <div style="flex:3"><input id="q" placeholder="พิมพ์เบอร์ ชื่อ เลขออเดอร์ หรือเลขพัสดุ"></div>
+      <div><select id="q-plat"><option value="">ทุกแพลตฟอร์ม</option></select></div>
+      <div style="flex:0"><button class="btn" id="btn-find">ค้นหา</button></div>
+      <div style="flex:0"><button class="btn red" id="btn-del-sel" disabled>ลบที่เลือก</button></div>
+    </div>
+    <div class="sub" id="q-cnt"></div>
+    <div class="tw" style="max-height:420px">
+      <table>
+        <thead><tr>
+          <th class="sel-col"><input type="checkbox" id="chk-all" style="width:auto"></th>
+          <th>วันที่</th><th>แพลตฟอร์ม</th><th>เบอร์</th><th>ชื่อ</th>
+          <th>เลขออเดอร์</th><th>เลขพัสดุ</th><th class="num">COD</th><th>ที่มา</th>
+        </tr></thead>
+        <tbody id="tb"><tr><td colspan="9" class="empty">ยังไม่ได้ค้นหา</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 4. ลบลูกค้าออกจาก Blacklist -->
+  <div class="card danger">
+    <h2>ลบลูกค้าออกจาก Blacklist</h2>
+    <div class="sub">ลบประวัติตีกลับทั้งหมดของเบอร์นั้น + การตั้งค่าบล็อก/ยกเว้น + บันทึกของทีม</div>
+    <div class="row">
+      <div style="flex:2"><label>เบอร์โทร (หรือรหัสนิรนาม ANON-…)</label><input id="ph" placeholder="08X-XXX-XXXX"></div>
+      <div style="flex:0"><button class="btn ghost" id="btn-ph-check">ตรวจก่อน</button></div>
+      <div style="flex:0"><button class="btn red" id="btn-ph-del" disabled>ลบลูกค้ารายนี้</button></div>
+    </div>
+    <div style="margin-top:10px" id="ph-info" class="sub">—</div>
+  </div>
+
+  <!-- 5. ล้างทั้งระบบ -->
+  <div class="card danger">
+    <h2>ล้างข้อมูลทั้งระบบ</h2>
+    <div class="sub">ลบรายการตีกลับ + สรุปลูกค้า + ประวัติการนำเข้า ทั้งหมด (ผู้ใช้งานและเกณฑ์ความเสี่ยงยังอยู่)</div>
+    <div class="row" style="align-items:center">
+      <div style="flex:0"><label style="margin:0"><input type="checkbox" id="keep-ovr" checked style="width:auto"> เก็บรายการที่ตั้งค่าบล็อก/ยกเว้นเองไว้</label></div>
+    </div>
+    <div class="confirm-box">
+      <label>พิมพ์คำว่า <b>ลบทั้งหมด</b> เพื่อยืนยัน</label>
+      <div class="row" style="margin-top:6px">
+        <div style="flex:2"><input id="wipe-word" placeholder="ลบทั้งหมด" autocomplete="off"></div>
+        <div style="flex:0"><button class="btn red" id="btn-wipe" disabled>🗑 ล้างข้อมูลทั้งระบบ</button></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  const sb = BL.sb, $ = function (id) { return document.getElementById(id); };
+  let FOUND = [], DATE_N = 0, PH_READY = '';
+
+  /* ---------- helper ---------- */
+  async function countRows(build) {
+    const { count, error } = await build().select('id', { count: 'exact', head: true });
+    if (error) throw error;
+    return count || 0;
+  }
+  async function recompute() {
+    const r = await sb.rpc('bl_recompute');
+    if (r.error) BL.toast('คำนวณใหม่ไม่สำเร็จ: ' + r.error.message, 'err');
+  }
+  function ask(msg) { return window.confirm(msg); }
+
+  /* ---------- ภาพรวม ---------- */
+  async function loadStats() {
+    try {
+      const [a, b, c, d] = await Promise.all([
+        countRows(function () { return sb.from('bl_rejects'); }),
+        countRows(function () { return sb.from('bl_customers'); }),
+        countRows(function () { return sb.from('bl_batches'); }),
+        countRows(function () { return sb.from('bl_overrides'); })
+      ]);
+      $('k-rej').textContent = a.toLocaleString('th-TH');
+      $('k-cus').textContent = b.toLocaleString('th-TH');
+      $('k-bat').textContent = c.toLocaleString('th-TH');
+      $('k-ovr').textContent = d.toLocaleString('th-TH');
+    } catch (e) { BL.toast('โหลดตัวเลขไม่สำเร็จ: ' + e.message, 'err'); }
+  }
+
+  /* ---------- 1. ลบตามแพลตฟอร์ม ---------- */
+  const PLATS = BL.PLATFORMS.map(function (p) { return p.key; }).concat(['JST', 'Offline']);
+
+  async function loadPlatforms() {
+    $('plat-list').innerHTML = PLATS.map(function (k) {
+      return '<div class="kill-row" id="pr-' + k + '">' +
+        '<div class="nm"><b>' + BL.esc(k) + '</b><span id="pc-' + k + '">กำลังนับ…</span></div>' +
+        '<button class="btn red sm" data-p="' + BL.esc(k) + '" disabled>ลบทั้งหมดของ ' + BL.esc(k) + '</button>' +
+        '</div>';
+    }).join('');
+    for (const k of PLATS) {
+      let n = 0;
+      try { n = await countRows(function () { return sb.from('bl_rejects').eq('platform', k); }); } catch (e) {}
+      $('pc-' + k).textContent = n.toLocaleString('th-TH') + ' รายการในระบบ';
+      const btn = $('pr-' + k).querySelector('button');
+      btn.disabled = n === 0;
+      btn.onclick = function () { delPlatform(k, n); };
+    }
+  }
+
+  async function delPlatform(k, n) {
+    if (!ask('ลบข้อมูลตีกลับของ ' + k + ' ทั้งหมด ' + n.toLocaleString('th-TH') + ' รายการ?\n\nย้อนกลับไม่ได้')) return;
+    const r = await sb.from('bl_rejects').delete().eq('platform', k);
+    if (r.error) return BL.toast('ลบไม่สำเร็จ: ' + r.error.message, 'err');
+    await sb.from('bl_batches').delete().eq('platform', k);
+    await recompute();
+    BL.toast('ลบข้อมูล ' + k + ' เรียบร้อย');
+    refreshAll();
+  }
+
+  /* ---------- 2. ลบตามช่วงวันที่ ---------- */
+  function dateQuery() {
+    let b = sb.from('bl_rejects');
+    const d1 = $('d1').value, d2 = $('d2').value, p = $('d-plat').value;
+    if (!d1 && !d2) return null;
+    if (d1) b = b.gte('reject_date', d1);
+    if (d2) b = b.lte('reject_date', d2);
+    if (p) b = b.eq('platform', p);
+    return b;
+  }
+
+  $('btn-count-date').onclick = async function () {
+    const q = dateQuery();
+    if (!q) return BL.toast('ใส่วันที่อย่างน้อย 1 ช่อง', 'warn');
+    try {
+      DATE_N = await countRows(function () { return dateQuery(); });
+      const pill = $('pill-date');
+      pill.textContent = DATE_N.toLocaleString('th-TH') + ' รายการ';
+      pill.className = 'count-pill' + (DATE_N ? '' : ' zero');
+      $('btn-del-date').disabled = DATE_N === 0;
+    } catch (e) { BL.toast(e.message, 'err'); }
+  };
+
+  $('btn-del-date').onclick = async function () {
+    if (!DATE_N) return;
+    if (!ask('ลบ ' + DATE_N.toLocaleString('th-TH') + ' รายการในช่วงวันที่ที่เลือก?\n\nย้อนกลับไม่ได้')) return;
+    const q = dateQuery(); if (!q) return;
+    const r = await q.delete();
+    if (r.error) return BL.toast('ลบไม่สำเร็จ: ' + r.error.message, 'err');
+    await recompute();
+    BL.toast('ลบเรียบร้อย ' + DATE_N.toLocaleString('th-TH') + ' รายการ');
+    DATE_N = 0; $('btn-del-date').disabled = true;
+    $('pill-date').textContent = 'ลบแล้ว'; $('pill-date').className = 'count-pill zero';
+    refreshAll();
+  };
+
+  /* ---------- 3. ค้นหาแล้วลบรายรายการ ---------- */
+  $('btn-find').onclick = async function () {
+    const q = $('q').value.trim(), p = $('q-plat').value;
+    if (!q) return BL.toast('พิมพ์คำค้นก่อน', 'warn');
+    $('tb').innerHTML = '<tr><td colspan="9" class="empty">กำลังค้นหา…</td></tr>';
+    try {
+      let b = sb.from('bl_rejects').select('*').order('reject_date', { ascending: false }).limit(500);
+      if (p) b = b.eq('platform', p);
+      const ph = BL.normPhone(q);
+      if (ph) b = b.eq('phone', ph);
+      else if (BL.isAnonPhone && BL.isAnonPhone(q)) b = b.eq('phone', q);
+      else b = b.or('name.ilike.%' + q + '%,order_no.ilike.%' + q +
+                    '%,tracking_no.ilike.%' + q + '%,phone.ilike.%' + q + '%');
+      const { data, error } = await b;
+      if (error) throw error;
+      FOUND = data || [];
+      drawFound();
+    } catch (e) {
+      $('tb').innerHTML = '<tr><td colspan="9" class="empty">' + BL.esc(e.message) + '</td></tr>';
+    }
+  };
+
+  function drawFound() {
+    $('q-cnt').textContent = 'พบ ' + FOUND.length.toLocaleString('th-TH') + ' รายการ' +
+      (FOUND.length >= 500 ? ' (แสดงสูงสุด 500)' : '');
+    if (!FOUND.length) {
+      $('tb').innerHTML = '<tr><td colspan="9" class="empty">ไม่พบรายการ</td></tr>';
+      $('btn-del-sel').disabled = true; return;
+    }
+    $('tb').innerHTML = FOUND.map(function (r) {
+      return '<tr>' +
+        '<td class="sel-col"><input type="checkbox" class="rowchk" value="' + r.id + '" style="width:auto"></td>' +
+        '<td>' + BL.thDate(r.reject_date) + '</td>' +
+        '<td><span class="tag">' + BL.esc(r.platform) + '</span></td>' +
+        '<td class="mono">' + BL.esc(BL.fmtPhone(r.phone)) + '</td>' +
+        '<td>' + BL.esc(r.name || '-') + '</td>' +
+        '<td class="mono" style="font-size:12.5px">' + BL.esc(r.order_no || '-') + '</td>' +
+        '<td class="mono" style="font-size:12.5px">' + BL.esc(r.tracking_no || '-') + '</td>' +
+        '<td class="num">' + (r.cod_amount ? Math.round(r.cod_amount).toLocaleString('th-TH') : '-') + '</td>' +
+        '<td>' + (r.source === 'manual' ? '<span class="tag">คีย์มือ</span>' : '<span class="tag">ไฟล์</span>') +
+        '</td></tr>';
+    }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('.rowchk'), function (c) {
+      c.onchange = syncSel;
+    });
+    $('chk-all').checked = false;
+    syncSel();
+  }
+
+  function selectedIds() {
+    return Array.prototype.filter.call(document.querySelectorAll('.rowchk'), function (c) { return c.checked; })
+      .map(function (c) { return Number(c.value); });
+  }
+  function syncSel() {
+    const n = selectedIds().length;
+    $('btn-del-sel').disabled = n === 0;
+    $('btn-del-sel').textContent = n ? 'ลบที่เลือก (' + n + ')' : 'ลบที่เลือก';
+  }
+  $('chk-all').onchange = function () {
+    const v = this.checked;
+    Array.prototype.forEach.call(document.querySelectorAll('.rowchk'), function (c) { c.checked = v; });
+    syncSel();
+  };
+
+  $('btn-del-sel').onclick = async function () {
+    const ids = selectedIds();
+    if (!ids.length) return;
+    if (!ask('ลบ ' + ids.length + ' รายการที่เลือก?\n\nย้อนกลับไม่ได้')) return;
+    const CH = 200;
+    for (let i = 0; i < ids.length; i += CH) {
+      const r = await sb.from('bl_rejects').delete().in('id', ids.slice(i, i + CH));
+      if (r.error) return BL.toast('ลบไม่สำเร็จ: ' + r.error.message, 'err');
+    }
+    await recompute();
+    BL.toast('ลบเรียบร้อย ' + ids.length + ' รายการ');
+    FOUND = FOUND.filter(function (r) { return ids.indexOf(r.id) < 0; });
+    drawFound(); refreshAll();
+  };
+
+  /* ---------- 4. ลบลูกค้าทั้งราย ---------- */
+  function keyOf(v) {
+    const s = String(v || '').trim();
+    if (BL.isAnonPhone && BL.isAnonPhone(s)) return s;
+    return BL.normPhone(s);
+  }
+
+  $('btn-ph-check').onclick = async function () {
+    const k = keyOf($('ph').value);
+    if (!k) { $('ph-info').textContent = 'เบอร์ไม่ถูกต้อง'; $('btn-ph-del').disabled = true; return; }
+    try {
+      const n = await countRows(function () { return sb.from('bl_rejects').eq('phone', k); });
+      const { data: c } = await sb.from('bl_customers').select('name,risk_level,reject_count')
+        .eq('phone', k).maybeSingle();
+      PH_READY = k;
+      $('ph-info').innerHTML = '<b>' + BL.esc(BL.fmtPhone(k)) + '</b> — ' +
+        (c ? BL.esc(c.name || 'ไม่ระบุชื่อ') + ' · ระดับ ' + BL.esc((BL.RISK[c.risk_level] || {}).t || c.risk_level) : 'ไม่มีในสรุปลูกค้า') +
+        ' · ประวัติตีกลับ <b>' + n.toLocaleString('th-TH') + '</b> รายการ';
+      $('btn-ph-del').disabled = (n === 0 && !c);
+    } catch (e) { BL.toast(e.message, 'err'); }
+  };
+
+  $('btn-ph-del').onclick = async function () {
+    if (!PH_READY) return;
+    if (!ask('ลบลูกค้า ' + BL.fmtPhone(PH_READY) + ' ออกจากระบบทั้งหมด?\n\nรวมประวัติตีกลับ บันทึกของทีม และการตั้งค่าบล็อก/ยกเว้น\nย้อนกลับไม่ได้')) return;
+    const steps = [
+      sb.from('bl_rejects').delete().eq('phone', PH_READY),
+      sb.from('bl_notes').delete().eq('phone', PH_READY),
+      sb.from('bl_overrides').delete().eq('phone', PH_READY),
+      sb.from('bl_customers').delete().eq('phone', PH_READY)
+    ];
+    for (const s of steps) { const r = await s; if (r.error) return BL.toast(r.error.message, 'err'); }
+    BL.toast('ลบลูกค้ารายนี้เรียบร้อย');
+    $('ph').value = ''; $('ph-info').textContent = '—'; $('btn-ph-del').disabled = true; PH_READY = '';
+    refreshAll();
+  };
+
+  /* ---------- 5. ล้างทั้งระบบ ---------- */
+  $('wipe-word').oninput = function () {
+    $('btn-wipe').disabled = this.value.trim() !== 'ลบทั้งหมด';
+  };
+
+  $('btn-wipe').onclick = async function () {
+    if ($('wipe-word').value.trim() !== 'ลบทั้งหมด') return;
+    if (!ask('ล้างข้อมูลตีกลับทั้งระบบ?\n\nการกระทำนี้ย้อนกลับไม่ได้ และจะลบข้อมูลของทุกแพลตฟอร์ม')) return;
+    const btn = this; btn.disabled = true; btn.innerHTML = '<span class="spin"></span> กำลังล้าง';
+    try {
+      let r = await sb.from('bl_rejects').delete().gt('id', 0);
+      if (r.error) throw r.error;
+      await sb.from('bl_notes').delete().gt('id', 0);
+      await sb.from('bl_batches').delete().not('id', 'is', null);
+      if (!$('keep-ovr').checked) await sb.from('bl_overrides').delete().neq('phone', '');
+      await sb.from('bl_customers').delete().neq('phone', '');
+      await recompute();
+      BL.toast('ล้างข้อมูลทั้งระบบเรียบร้อย');
+      $('wipe-word').value = '';
+      refreshAll();
+    } catch (e) {
+      BL.toast('ล้างไม่สำเร็จ: ' + e.message, 'err');
+    } finally {
+      btn.disabled = true; btn.textContent = '🗑 ล้างข้อมูลทั้งระบบ';
+    }
+  };
+
+  /* ---------- boot ---------- */
+  function refreshAll() { loadStats(); loadPlatforms(); }
+  $('btn-refresh').onclick = refreshAll;
+
+  (async function () {
+    if (!(await BL.requireAuth({ admin: true }))) return;
+    BL.renderNav('manage.html');
+    const opts = '<option value="">ทุกแพลตฟอร์ม</option>' +
+      PLATS.map(function (k) { return '<option value="' + BL.esc(k) + '">' + BL.esc(k) + '</option>'; }).join('');
+    $('d-plat').innerHTML = opts;
+    $('q-plat').innerHTML = opts;
+    refreshAll();
+  })();
+})();
+</script>
+</body>
+</html>
