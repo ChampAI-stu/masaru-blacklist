@@ -284,7 +284,7 @@
     (byPlat || []).forEach(function (p) { map[p.p] = p.n; });
     $('dash-platform-strip').innerHTML = BL.PLATFORMS.map(function (p) {
       return '<a class="dash-platform-pill" href="' + p.file + '" style="--pill1:' + p.c1 + ';--pill2:' + p.c2 + '">' +
-        BL.platformLogoHTML(p, 'pill', p.name) +
+        BL.platformIconHTML(p, 'pill', p.name) +
         '<span class="meta"><span class="name">' + BL.esc(p.name) + '</span><span class="count">' + (map[p.key] || 0).toLocaleString('th-TH') + ' รายการ / 30 วัน</span></span></a>';
     }).join('');
   }
