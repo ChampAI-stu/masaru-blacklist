@@ -567,11 +567,14 @@
     const me = BL.me();
     const batchId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
     let inserted = 0;
+    let batchCreated = false;
     try {
-      await sb.from('bl_batches').insert({
+      const batchRes = await sb.from('bl_batches').insert({
         id: batchId, platform: PLAT, file_name: FILENAME,
         row_total: ROWS.length, uploaded_by: me ? me.email : null
       });
+      if (batchRes.error) throw batchRes.error;
+      batchCreated = true;
       const CH = 400;
       for (let i = 0; i < PARSED.length; i += CH) {
         btn.innerHTML = '<span class="spin"></span> กำลังบันทึก ' +
@@ -603,7 +606,17 @@
       $('imp-hint').textContent = 'บันทึกแล้ว ' + inserted.toLocaleString('th-TH') + ' รายการใหม่ · Dashboard รวมและหน้าแพลตฟอร์มจะอ่านข้อมูลชุดเดียวกัน';
       loadBatches();
     } catch (e) {
+      // ถ้าการนำเข้าล้มเหลว ให้ย้อนข้อมูลของ batch นี้ออกทั้งหมด
+      // เพื่อไม่ให้มีข้อมูลบางส่วนหรือประวัติที่อัปไม่สำเร็จค้างอยู่ในระบบ
+      if (batchCreated) {
+        try { await sb.from('bl_rejects').delete().eq('batch_id', batchId); } catch (_) {}
+        try { await sb.from('bl_batches').delete().eq('id', batchId); } catch (_) {}
+        if (inserted > 0) {
+          try { await sb.rpc('bl_recompute'); } catch (_) {}
+        }
+      }
       BL.toast('บันทึกไม่สำเร็จ: ' + e.message, 'err');
+      loadBatches();
     } finally {
       btn.disabled = false; btn.textContent = '⬆️ บันทึกเข้าระบบ';
     }
@@ -611,7 +624,12 @@
 
   /* ---------------- ประวัติ batch ---------------- */
   async function loadBatches() {
-    let q = sb.from('bl_batches').select('*').order('created_at', { ascending: false }).limit(60);
+    // แสดงเฉพาะรอบที่มีข้อมูลบันทึกเข้าได้จริงเท่านั้น
+    // batch ที่ล้มเหลว / บันทึกใหม่ = 0 จะไม่แสดงเพื่อลดความสับสน
+    let q = sb.from('bl_batches').select('*')
+      .gt('row_inserted', 0)
+      .order('created_at', { ascending: false })
+      .limit(60);
     if (PLAT) q = q.eq('platform', PLAT);
     const { data, error } = await q;
     const tb = $('tb-batch');
