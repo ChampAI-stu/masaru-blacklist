@@ -30,6 +30,20 @@
   .auto-note{background:linear-gradient(135deg,#eef7ff,#f8fbff);border:1px solid #cfe2f8;border-radius:12px;padding:11px 13px;color:#36506f;font-size:13px;line-height:1.55;margin-bottom:14px}
   .dashboard-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
   .dashboard-links a{text-decoration:none}
+  /* กล่องแจ้ง error แบบค้างไว้ (ไม่หายเองเหมือน toast) */
+  .err-box{margin-top:14px;border:1px solid #f3c2c6;background:#fff5f5;border-radius:13px;padding:14px 16px}
+  .err-box h4{margin:0 0 6px;color:#b91c1c;font-size:15px}
+  .err-box .msg{font-family:ui-monospace,monospace;font-size:12.5px;background:#fff;border:1px solid #f0d4d7;
+                border-radius:9px;padding:10px 12px;color:#7f1d1d;word-break:break-word;line-height:1.7;margin-bottom:10px}
+  .err-box .fix{font-size:13.5px;color:#4b2226;line-height:1.7}
+  .err-box .fix b{color:#b91c1c}
+  /* ตรวจสถานะฐานข้อมูล */
+  .sys-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:13.5px}
+  .sys-row:first-child{border-top:0}
+  .sys-row .ic2{width:20px;flex:none;font-weight:700}
+  .sys-row .tx b{color:var(--navy)}
+  .sys-row .tx .hint{display:block;color:#b45309;font-size:12.5px;margin-top:2px}
+  .sys-ok .ic2{color:#15803d} .sys-bad .ic2{color:#b91c1c} .sys-wait .ic2{color:#94a3b8}
   @media(max-width:760px){.platform-pick{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:430px){.platform-pick{grid-template-columns:1fr}}
 </style>
@@ -43,6 +57,13 @@
       <h1>นำเข้าข้อมูลตีกลับรายวัน</h1>
       <p>อัปไฟล์รายงานตีกลับ / คืนสินค้า จากแต่ละแพลตฟอร์ม — ระบบจะกันข้อมูลซ้ำให้อัตโนมัติ</p>
     </div>
+    <button class="btn ghost sm" id="btn-sys">🩺 ตรวจระบบฐานข้อมูล</button>
+  </div>
+
+  <div class="card hide" id="sys-card">
+    <h2>สถานะฐานข้อมูล</h2>
+    <div class="sub">ถ้ามีข้อไหนขึ้นสีแดง ให้รันไฟล์ SQL ที่ระบุใน Supabase → SQL Editor ก่อน แล้วกดตรวจใหม่</div>
+    <div id="sys-list"></div>
   </div>
 
   <div class="card" id="platform-card">
@@ -112,6 +133,7 @@
       <button class="btn red" id="btn-import">⬆️ บันทึกเข้าระบบ</button>
       <span class="sub" style="margin-left:10px" id="imp-hint"></span>
       <div class="dashboard-links hide" id="dashboard-links"></div>
+      <div class="err-box hide" id="err-box"></div>
     </div>
   </div>
 
@@ -506,6 +528,24 @@
     }
     return BL.fmtPhone(phone || BL.normPhone(raw));
   }
+  // ป้ายแท็กของ JST มาเป็นสตริงยาว เช่น "หลังขาย(ตีกลับ),ยกเลิกออนไลน์,พิมพ์แล้ว,..."
+  // ถ้าเก็บทั้งก้อน กราฟ "เหตุผลที่ไม่รับของ" จะกลายเป็นค่าไม่ซ้ำกันทุกแถวจนอ่านไม่รู้เรื่อง
+  // จึงดึงเฉพาะแท็กที่เป็นเหตุผลจริงออกมาแท็กเดียว
+  const REASON_KEYS = ['ตีกลับ', 'คืนสินค้า', 'ส่งคืน', 'ปฏิเสธ', 'ไม่รับ', 'ติดต่อไม่ได้',
+                       'ที่อยู่', 'ยกเลิก', 'return', 'rts', 'reject'];
+  function cleanReason(v) {
+    const raw = String(v === null || v === undefined ? '' : v).trim();
+    if (!raw) return 'ตีกลับ';
+    const parts = raw.split(/[,;|]/).map(function (x) { return x.trim(); }).filter(Boolean);
+    for (let i = 0; i < parts.length; i++) {
+      const low = parts[i].toLowerCase();
+      for (let j = 0; j < REASON_KEYS.length; j++) {
+        if (low.indexOf(REASON_KEYS[j].toLowerCase()) >= 0) return parts[i].slice(0, 60);
+      }
+    }
+    return (parts[0] || 'ตีกลับ').slice(0, 60);
+  }
+
   function guessProvince(r, f) {
     if (f.province && r[f.province]) return String(r[f.province]).trim();
     if (PLAT === 'Lazada' && f.address && r[f.address]) {
@@ -554,7 +594,7 @@
         order_date: orderDate,
         reject_date: rejectDate || orderDate || monthFallback(),
         cod_amount: f.cod_amount ? BL.num(r[f.cod_amount]) : null,
-        reason: f.reason ? String(r[f.reason] || '').trim() : 'ตีกลับ',
+        reason: cleanReason(f.reason ? r[f.reason] : ''),
         source: 'import'
       };
       const key = PLAT + '|' + (row.order_no || '') + '|' + (row.tracking_no || '') + '|' + phone;
@@ -609,9 +649,122 @@
     $('card-prev').scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  /* ---------------- แจ้ง error แบบอ่านรู้เรื่อง ---------------- */
+  // แปลรหัสข้อผิดพลาดของ Supabase/Postgres เป็นวิธีแก้ที่ทำตามได้จริง
+  function diagnose(e) {
+    const code = String((e && e.code) || '');
+    const msg = String((e && e.message) || e || '');
+    const low = msg.toLowerCase();
+    if (code === 'PGRST204' || code === '42703' || low.indexOf('schema cache') >= 0) {
+      const m = msg.match(/'([a-z_]+)'/i);
+      return 'ฐานข้อมูลยังไม่มีคอลัมน์ <b>' + BL.esc(m ? m[1] : '(ไม่ทราบชื่อ)') + '</b> ในตาราง bl_rejects<br>' +
+             '→ เปิด Supabase → SQL Editor แล้วรันไฟล์ <b>05_repair.sql</b> (รันซ้ำได้ ไม่ทำข้อมูลเดิมหาย)';
+    }
+    if (code === '42P01' || low.indexOf('does not exist') >= 0 && low.indexOf('relation') >= 0) {
+      return 'ยังไม่มีตารางในฐานข้อมูล → รัน <b>01_schema.sql</b> ก่อน แล้วตามด้วย 02, 05';
+    }
+    if (code === 'PGRST202' || low.indexOf('function') >= 0 && low.indexOf('not find') >= 0) {
+      return 'ยังไม่มีฟังก์ชันที่ระบบเรียกใช้ → รัน <b>02_roles.sql</b> และ <b>05_repair.sql</b>';
+    }
+    if (code === '42501' || low.indexOf('row-level security') >= 0 || low.indexOf('permission denied') >= 0) {
+      return 'สิทธิ์ไม่พอ (RLS ปฏิเสธ) → รัน <b>02_roles.sql</b> และตรวจว่าบัญชีนี้อยู่ในตาราง bl_users สถานะ active';
+    }
+    if (code === '23514') return 'ค่าไม่ผ่านเงื่อนไข CHECK ของตาราง → รัน <b>05_repair.sql</b>';
+    if (code === '22008' || code === '22007' || low.indexOf('date/time') >= 0) {
+      return 'มีวันที่ในไฟล์ที่แปลงไม่ได้ → ลองเปลี่ยนคอลัมน์ “วันที่ตีกลับ” ในขั้นตอนที่ 3';
+    }
+    if (low.indexOf('failed to fetch') >= 0 || low.indexOf('networkerror') >= 0) {
+      return 'ต่อฐานข้อมูลไม่ได้ → ตรวจอินเทอร์เน็ต หรือค่า SUPABASE_URL / KEY ใน config.js';
+    }
+    if (low.indexOf('jwt') >= 0 || low.indexOf('expired') >= 0) {
+      return 'เซสชันหมดอายุ → ออกจากระบบแล้วเข้าใหม่ 1 ครั้ง';
+    }
+    return 'คัดลอกข้อความด้านบนส่งให้ผู้ดูแลระบบได้เลย';
+  }
+
+  function showErr(title, e) {
+    const b = $('err-box');
+    b.innerHTML = '<h4>❌ ' + BL.esc(title) + '</h4>' +
+      '<div class="msg">' + BL.esc(String((e && e.code) ? '[' + e.code + '] ' : '') + ((e && e.message) || e)) +
+      (e && e.details ? '<br>details: ' + BL.esc(e.details) : '') +
+      (e && e.hint ? '<br>hint: ' + BL.esc(e.hint) : '') + '</div>' +
+      '<div class="fix">🛠 <b>วิธีแก้:</b><br>' + diagnose(e) + '</div>';
+    b.classList.remove('hide');
+    b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function clearErr() { $('err-box').classList.add('hide'); }
+
+  /* ---------------- ตรวจสถานะฐานข้อมูล ---------------- */
+  const CHECKS = [
+    { t: 'ตาราง bl_rejects (ตารางหลัก)', fix: 'รัน 01_schema.sql',
+      run: function () { return sb.from('bl_rejects').select('id').limit(1); } },
+    { t: 'ระบบสิทธิ์ผู้ใช้ (bl_me)', fix: 'รัน 02_roles.sql',
+      run: function () { return sb.rpc('bl_me'); } },
+    { t: 'คอลัมน์ source / created_by', fix: 'รัน 05_repair.sql',
+      run: function () { return sb.from('bl_rejects').select('id,source,created_by').limit(1); } },
+    { t: 'สถิติรายแพลตฟอร์ม (bl_platform_stats)', fix: 'รัน 05_repair.sql',
+      run: function () { return sb.rpc('bl_platform_stats', { p_platform: 'TikTok' }); } },
+    { t: 'สิทธิ์เขียนข้อมูล (bl_batches)', fix: 'รัน 02_roles.sql แล้วตรวจสถานะบัญชีในหน้า “ผู้ใช้งาน”',
+      run: function () { return sb.from('bl_batches').select('id').limit(1); } }
+  ];
+
+  async function checkDb(force) {
+    $('sys-card').classList.remove('hide');
+    $('sys-list').innerHTML = CHECKS.map(function (c, i) {
+      return '<div class="sys-row sys-wait" id="sys-' + i + '"><span class="ic2">•</span>' +
+             '<span class="tx"><b>' + BL.esc(c.t) + '</b></span></div>';
+    }).join('');
+    let bad = 0;
+    for (let i = 0; i < CHECKS.length; i++) {
+      const c = CHECKS[i];
+      let err = null;
+      try { const r = await c.run(); err = r && r.error; } catch (e) { err = e; }
+      const el = $('sys-' + i);
+      if (err) {
+        bad++;
+        el.className = 'sys-row sys-bad';
+        el.innerHTML = '<span class="ic2">✕</span><span class="tx"><b>' + BL.esc(c.t) + '</b>' +
+          '<span class="hint">' + BL.esc(err.message || String(err)) + ' → ' + BL.esc(c.fix) + '</span></span>';
+      } else {
+        el.className = 'sys-row sys-ok';
+        el.innerHTML = '<span class="ic2">✓</span><span class="tx"><b>' + BL.esc(c.t) + '</b></span>';
+      }
+    }
+    if (!bad && !force) $('sys-card').classList.add('hide');
+    if (!bad && force) BL.toast('ฐานข้อมูลพร้อมใช้งานครบทุกข้อ');
+    return bad;
+  }
+  $('btn-sys').onclick = function () { checkDb(true); };
+
   /* ---------------- บันทึกเข้าระบบ ---------------- */
+  // คอลัมน์ที่มีเฉพาะเมื่อรัน 03/05 แล้ว — ถ้าฐานข้อมูลยังไม่มี ให้ตัดทิ้งแล้วบันทึกต่อได้
+  let DROPPED = [];
+  async function upsertChunk(chunk) {
+    let payload = chunk, tries = 0;
+    for (;;) {
+      const res = await sb.from('bl_rejects')
+        .upsert(payload, { onConflict: 'dedup_key', ignoreDuplicates: true }).select('id');
+      if (!res.error) return res;
+      const code = String(res.error.code || '');
+      const msg = String(res.error.message || '');
+      const m = msg.match(/'([a-z_]+)' column/i);
+      const col = m && m[1];
+      const droppable = ['source', 'created_by', 'phone_raw', 'province', 'address'];
+      if ((code === 'PGRST204' || code === '42703') && col && droppable.indexOf(col) >= 0 && tries < 4) {
+        tries++;
+        if (DROPPED.indexOf(col) < 0) DROPPED.push(col);
+        payload = payload.map(function (r) {
+          const o = {}; for (const k in r) if (k !== col) o[k] = r[k]; return o;
+        });
+        continue;
+      }
+      return res;
+    }
+  }
+
   $('btn-import').onclick = async function () {
     if (!PARSED.length) return BL.toast('ไม่มีข้อมูลให้บันทึก', 'warn');
+    clearErr(); DROPPED = [];
     const btn = this; btn.disabled = true;
     const me = BL.me();
     const batchId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
@@ -637,9 +790,7 @@
           o.batch_id = batchId;
           return o;
         });
-        const { data, error } = await sb.from('bl_rejects')
-          .upsert(chunk, { onConflict: 'dedup_key', ignoreDuplicates: true })
-          .select('id');
+        const { data, error } = await upsertChunk(chunk);
         if (error) throw error;
         inserted += (data || []).length;
       }
@@ -653,6 +804,15 @@
 
       BL.toast('บันทึกสำเร็จ ' + inserted.toLocaleString('th-TH') + ' รายการใหม่ (ซ้ำ ' +
                (PARSED.length - inserted).toLocaleString('th-TH') + ')');
+      if (DROPPED.length) {
+        const b = $('err-box');
+        b.innerHTML = '<h4 style="color:#b45309">⚠️ บันทึกสำเร็จ แต่ข้ามบางคอลัมน์</h4>' +
+          '<div class="fix">ฐานข้อมูลยังไม่มีคอลัมน์: <b>' + BL.esc(DROPPED.join(', ')) + '</b> ' +
+          'ระบบจึงบันทึกโดยไม่ใส่ค่าเหล่านี้<br>' +
+          'ให้รัน <b>05_repair.sql</b> ใน Supabase แล้วนำเข้าไฟล์นี้ซ้ำอีกครั้ง ' +
+          '(ข้อมูลเดิมจะไม่ซ้ำ เพราะระบบกันซ้ำด้วยเลขออเดอร์)</div>';
+        b.classList.remove('hide');
+      }
       const pp = platformMeta(PLAT);
       $('dashboard-links').innerHTML = '<a class="btn ghost sm" href="index.html">ดู Dashboard รวม</a>' +
         '<a class="btn sm" href="' + BL.esc(pp.file || 'index.html') + '">ดู Dashboard ' + BL.esc(pp.name) + '</a>';
@@ -669,7 +829,9 @@
           try { await sb.rpc('bl_recompute'); } catch (_) {}
         }
       }
-      BL.toast('บันทึกไม่สำเร็จ: ' + e.message, 'err');
+      BL.toast('บันทึกไม่สำเร็จ — ดูรายละเอียดด้านล่าง', 'err');
+      showErr('บันทึกเข้าระบบไม่สำเร็จ (ข้อมูลรอบนี้ถูกย้อนกลับแล้ว ไม่มีของค้าง)', e);
+      checkDb(false);
       loadBatches();
     } finally {
       btn.disabled = false; btn.textContent = '⬆️ บันทึกเข้าระบบ';
@@ -727,6 +889,8 @@
     drawPlatformPicker();
     if (PLAT) selectPlatform(PLAT);
     else { $('upload-card').classList.add('hide'); loadBatches(); }
+    // ตรวจฐานข้อมูลเงียบ ๆ ตอนเปิดหน้า — จะโผล่การ์ดเฉพาะตอนมีปัญหา
+    checkDb(false);
   })();
 })();
 </script>
