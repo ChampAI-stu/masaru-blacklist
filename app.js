@@ -65,25 +65,42 @@
 
   /* ---------- วันที่ ---------- */
   // รับได้ทั้ง Date, serial number ของ Excel, '2026-09-16', '16/09/2026', '16/09/2569'
+  function validYMD(y, mo, d) {
+    y = +y; mo = +mo; d = +d;
+    if (y > 2400) y -= 543;
+    if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return null;
+    if (y < 1900 || y > 2200 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    const dt = new Date(y, mo - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+    return [y, String(mo).padStart(2, '0'), String(d).padStart(2, '0')].join('-');
+  }
   function toDate(v) {
     if (v === null || v === undefined || v === '') return null;
     if (v instanceof Date && !isNaN(v)) return ymd(v);
     if (typeof v === 'number' && v > 20000 && v < 60000) {
       const d = new Date(Math.round((v - 25569) * 86400 * 1000));
-      return ymd(d);
+      return isNaN(d) ? null : ymd(d);
     }
-    let s = String(v).trim();
-    let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-    if (m) return fixBE(+m[1], +m[2], +m[3]);
-    m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
-    if (m) return fixBE(+m[3], +m[2], +m[1]);
-    const d = new Date(s);
-    return isNaN(d) ? null : ymd(d);
+    const s = String(v).trim();
+    let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\D|$)/);
+    if (m) {
+      let y = +m[1], a = +m[2], b = +m[3];
+      // ปกติ YYYY/MM/DD แต่ถ้าตัวกลางเกิน 12 ให้ถือว่าไฟล์ส่งมาเป็น YYYY/DD/MM
+      if (a > 12 && b >= 1 && b <= 12) return validYMD(y, b, a);
+      return validYMD(y, a, b);
+    }
+    m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\D|$)/);
+    if (m) {
+      let a = +m[1], b = +m[2], y = +m[3];
+      // ไฟล์ไทยใช้ DD/MM/YYYY เป็นหลัก; รองรับ MM/DD/YYYY เมื่อช่องที่สองเกิน 12
+      if (b > 12 && a >= 1 && a <= 12) return validYMD(y, a, b);
+      return validYMD(y, b, a);
+    }
+    // ใช้ Date parser เฉพาะรูปแบบที่ไม่กำกวม แล้วตรวจผลอีกครั้ง
+    const dt = new Date(s);
+    return isNaN(dt) ? null : validYMD(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
   }
-  function fixBE(y, mo, d) {
-    if (y > 2400) y -= 543;
-    return [y, String(mo).padStart(2, '0'), String(d).padStart(2, '0')].join('-');
-  }
+  function fixBE(y, mo, d) { return validYMD(y, mo, d); }
   function ymd(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
            '-' + String(d.getDate()).padStart(2, '0');
