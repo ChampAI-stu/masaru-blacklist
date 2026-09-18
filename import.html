@@ -669,6 +669,10 @@
     if (code === '42501' || low.indexOf('row-level security') >= 0 || low.indexOf('permission denied') >= 0) {
       return 'สิทธิ์ไม่พอ (RLS ปฏิเสธ) → รัน <b>02_roles.sql</b> และตรวจว่าบัญชีนี้อยู่ในตาราง bl_users สถานะ active';
     }
+    if (code === '21000' || low.indexOf('where clause') >= 0) {
+      return 'Supabase เปิดโหมดกันลบพลาดไว้ และฟังก์ชัน bl_recompute() เดิมมีคำสั่ง DELETE ที่ไม่มี WHERE<br>' +
+             '→ รันไฟล์ <b>07_fix_recompute.sql</b> ใน SQL Editor แล้วลองนำเข้าใหม่';
+    }
     if (code === '23514') return 'ค่าไม่ผ่านเงื่อนไข CHECK ของตาราง → รัน <b>05_repair.sql</b>';
     if (code === '22008' || code === '22007' || low.indexOf('date/time') >= 0) {
       return 'มีวันที่ในไฟล์ที่แปลงไม่ได้ → ลองเปลี่ยนคอลัมน์ “วันที่ตีกลับ” ในขั้นตอนที่ 3';
@@ -799,8 +803,16 @@
       }).eq('id', batchId);
 
       btn.innerHTML = '<span class="spin"></span> กำลังคำนวณความเสี่ยง…';
+      // ข้อมูลบันทึกสำเร็จไปแล้ว — ถ้าขั้นคำนวณสรุปพลาด ไม่ต้องย้อนข้อมูลทิ้ง
+      // แค่เตือนให้แก้แล้วกดคำนวณใหม่ที่หน้า "จัดการ Blacklist"
       const rc = await sb.rpc('bl_recompute');
-      if (rc.error) throw rc.error;
+      if (rc.error) {
+        showErr('บันทึกข้อมูลสำเร็จ แต่คำนวณระดับความเสี่ยงไม่สำเร็จ', rc.error);
+        BL.toast('บันทึก ' + inserted.toLocaleString('th-TH') +
+                 ' รายการแล้ว แต่ยังไม่ได้คำนวณความเสี่ยง', 'warn');
+        loadBatches();
+        return;
+      }
 
       BL.toast('บันทึกสำเร็จ ' + inserted.toLocaleString('th-TH') + ' รายการใหม่ (ซ้ำ ' +
                (PARSED.length - inserted).toLocaleString('th-TH') + ')');
