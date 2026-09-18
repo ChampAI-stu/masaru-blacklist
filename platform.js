@@ -6,7 +6,7 @@
 (function () {
   const sb = BL.sb, $ = function (id) { return document.getElementById(id); };
   const KEY = window.BL_PLATFORM;
-  const P = BL.platformOf(KEY) || { key: KEY, name: KEY, c1: '#1A2942', c2: '#2E3F63', ic: '📦', file: '', logo: '', hero: '', tagline: '', vibe: '' };
+  const P = BL.platformOf(KEY) || { key: KEY, name: KEY, c1: '#1A2942', c2: '#2E3F63', ic: '•', file: '', logo: '', icon: '', hero: '', vibe: '' };
   let ROWS = [];
 
   document.documentElement.style.setProperty('--p1', P.c1);
@@ -17,18 +17,17 @@
   function shell() {
     $('page').innerHTML =
       '<div class="p-hero">' +
-        '<div class="hero-watermark">' + BL.platformLogoHTML(P, 'watermark', P.name) + '</div>' +
         '<div class="hero-copy">' +
           '<div class="ttl">' + BL.platformLogoHTML(P, 'hero', P.name) + '</div>' +
-          '<div class="hero-meta"><span class="hero-chip">' + BL.esc(P.vibe || 'Platform Theme') + '</span><span class="hero-kicker">Official Platform Look</span></div>' +
-          '<div class="sub2">ข้อมูลลูกค้าสั่งแล้วไม่รับ เฉพาะช่องทาง ' + BL.esc(P.name) + (P.tagline ? ' · ' + BL.esc(P.tagline) : '') + '</div>' +
+          '<div class="hero-meta"><span class="hero-chip">' + BL.esc(P.vibe || 'Platform') + '</span><span class="hero-kicker">ข้อมูลเฉพาะช่องทาง</span></div>' +
+          '<div class="sub2">ข้อมูลลูกค้าสั่งแล้วไม่รับสินค้า • ' + BL.esc(P.name) + '</div>' +
         '</div>' +
         '<div class="hero-side">' +
-          '<div class="hero-illustration">' + (P.hero ? '<img src="' + BL.esc(P.hero) + '" alt="' + BL.esc(P.name) + ' hero illustration">' : '') + '</div>' +
+          '<div class="hero-illustration">' + (P.hero ? '<img src="' + BL.esc(P.hero) + '" alt="ภาพประกอบ ' + BL.esc(P.name) + '">' : '') + '</div>' +
           '<div class="acts">' +
-            '<a href="import.html?p=' + encodeURIComponent(P.key) + '">' + BL.platformLogoHTML(P, 'btn', P.name) + '<span>นำเข้าไฟล์</span></a>' +
-            '<a href="add.html?p=' + encodeURIComponent(P.key) + '">' + BL.platformLogoHTML(P, 'btn', P.name) + '<span>คีย์รายการ</span></a>' +
-            '<a href="check.html">' + BL.platformLogoHTML(P, 'btn', P.name) + '<span>เช็คเบอร์</span></a>' +
+            '<a href="import.html?p=' + encodeURIComponent(P.key) + '">' + BL.platformIconHTML(P, 'btn', P.name) + '<span>นำเข้าไฟล์</span></a>' +
+            '<a href="add.html?p=' + encodeURIComponent(P.key) + '">' + BL.platformIconHTML(P, 'btn', P.name) + '<span>คีย์รายการ</span></a>' +
+            '<a href="check.html">' + BL.platformIconHTML(P, 'btn', P.name) + '<span>เช็คเบอร์</span></a>' +
           '</div>' +
         '</div>' +
       '</div>' +
