@@ -29,13 +29,14 @@
   <div class="page-head">
     <div>
       <h1>ลบ / จัดการข้อมูล</h1>
-      <p>ลบข้อมูลตีกลับแบบเจาะจง หรือล้างเพื่อเริ่มนำเข้าใหม่ — เฉพาะผู้ดูแลระบบ</p>
+      <p>ลบข้อมูลตีกลับแบบเจาะจง หรือล้างเพื่อเริ่มนำเข้าใหม่</p>
     </div>
     <button class="btn ghost sm" id="btn-refresh">รีเฟรชตัวเลข</button>
   </div>
 
   <div class="note" style="margin-bottom:16px">
-    ⚠️ การลบที่นี่ <b>ย้อนกลับไม่ได้</b> ทุกครั้งที่ลบเสร็จ ระบบจะคำนวณระดับความเสี่ยงของลูกค้าใหม่ให้อัตโนมัติ
+    ⚠️ การลบที่นี่ <b>ย้อนกลับไม่ได้</b> ทุกครั้งที่ลบเสร็จ ระบบจะคำนวณระดับความเสี่ยงของลูกค้าใหม่ให้อัตโนมัติ<br>
+    ทุกการลบถูกบันทึกไว้ว่าใครทำ — โปรดกดยืนยันเมื่อแน่ใจแล้วเท่านั้น
   </div>
 
   <!-- ภาพรวม -->
@@ -106,8 +107,8 @@
   <div class="card danger">
     <h2>ล้างข้อมูลทั้งระบบ</h2>
     <div class="sub">ลบรายการตีกลับ + สรุปลูกค้า + ประวัติการนำเข้า ทั้งหมด (ผู้ใช้งานและเกณฑ์ความเสี่ยงยังอยู่)</div>
-    <div class="row" style="align-items:center">
-      <div style="flex:0"><label style="margin:0"><input type="checkbox" id="keep-ovr" checked style="width:auto"> เก็บรายการที่ตั้งค่าบล็อก/ยกเว้นเองไว้</label></div>
+    <div class="row hide" style="align-items:center" id="row-keep-ovr">
+      <div style="flex:0"><label style="margin:0"><input type="checkbox" id="keep-ovr" checked style="width:auto"> เก็บรายการที่ตั้งค่าบล็อก/ยกเว้นเองไว้ (เฉพาะผู้ดูแล)</label></div>
     </div>
     <div class="confirm-box">
       <label>พิมพ์คำว่า <b>ลบทั้งหมด</b> เพื่อยืนยัน</label>
@@ -326,14 +327,22 @@
   $('btn-ph-del').onclick = async function () {
     if (!PH_READY) return;
     if (!ask('ลบลูกค้า ' + BL.fmtPhone(PH_READY) + ' ออกจากระบบทั้งหมด?\n\nรวมประวัติตีกลับ บันทึกของทีม และการตั้งค่าบล็อก/ยกเว้น\nย้อนกลับไม่ได้')) return;
-    const steps = [
-      sb.from('bl_rejects').delete().eq('phone', PH_READY),
-      sb.from('bl_notes').delete().eq('phone', PH_READY),
-      sb.from('bl_overrides').delete().eq('phone', PH_READY),
-      sb.from('bl_customers').delete().eq('phone', PH_READY)
-    ];
-    for (const s of steps) { const r = await s; if (r.error) return BL.toast(r.error.message, 'err'); }
-    BL.toast('ลบลูกค้ารายนี้เรียบร้อย');
+    let r = await sb.from('bl_rejects').delete().eq('phone', PH_READY);
+    if (r.error) return BL.toast('ลบไม่สำเร็จ: ' + r.error.message, 'err');
+    await sb.from('bl_notes').delete().eq('phone', PH_READY);
+    // การบล็อก/ยกเว้นเอง สงวนให้ผู้ดูแลลบเท่านั้น
+    let keptOverride = false;
+    if (BL.isAdmin()) {
+      await sb.from('bl_overrides').delete().eq('phone', PH_READY);
+    } else {
+      const { data: o } = await sb.from('bl_overrides').select('phone').eq('phone', PH_READY).maybeSingle();
+      keptOverride = !!o;
+    }
+    // bl_customers ระบบสร้างใหม่จาก bl_rejects เสมอ จึงใช้ recompute แทนการลบตรง ๆ
+    await recompute();
+    BL.toast(keptOverride
+      ? 'ลบประวัติแล้ว — แต่เบอร์นี้ยังถูกตั้งค่าบล็อก/ยกเว้นไว้ ต้องให้ผู้ดูแลล้างให้'
+      : 'ลบลูกค้ารายนี้เรียบร้อย', keptOverride ? 'warn' : 'ok');
     $('ph').value = ''; $('ph-info').textContent = '—'; $('btn-ph-del').disabled = true; PH_READY = '';
     refreshAll();
   };
@@ -352,8 +361,10 @@
       if (r.error) throw r.error;
       await sb.from('bl_notes').delete().gt('id', 0);
       await sb.from('bl_batches').delete().not('id', 'is', null);
-      if (!$('keep-ovr').checked) await sb.from('bl_overrides').delete().neq('phone', '');
-      await sb.from('bl_customers').delete().neq('phone', '');
+      if (BL.isAdmin() && !$('keep-ovr').checked) {
+        await sb.from('bl_overrides').delete().neq('phone', '');
+      }
+      // bl_customers ถูกสร้างใหม่จาก bl_rejects ทุกครั้ง — recompute จะล้างให้เอง
       await recompute();
       BL.toast('ล้างข้อมูลทั้งระบบเรียบร้อย');
       $('wipe-word').value = '';
@@ -370,8 +381,9 @@
   $('btn-refresh').onclick = refreshAll;
 
   (async function () {
-    if (!(await BL.requireAuth({ admin: true }))) return;
+    if (!(await BL.requireAuth())) return;
     BL.renderNav('manage.html');
+    if (BL.isAdmin()) $('row-keep-ovr').classList.remove('hide');
     const opts = '<option value="">ทุกแพลตฟอร์ม</option>' +
       PLATS.map(function (k) { return '<option value="' + BL.esc(k) + '">' + BL.esc(k) + '</option>'; }).join('');
     $('d-plat').innerHTML = opts;
