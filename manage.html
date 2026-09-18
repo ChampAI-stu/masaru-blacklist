@@ -121,6 +121,7 @@
 
 </div>
 
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
@@ -129,32 +130,57 @@
   const sb = BL.sb, $ = function (id) { return document.getElementById(id); };
   let FOUND = [], DATE_N = 0, PH_READY = '';
 
-  /* ---------- helper ---------- */
-  async function countRows(build) {
-    const { count, error } = await build().select('id', { count: 'exact', head: true });
+  /* ---------- helper ----------
+     สำคัญ: supabase-js ต้องเรียก .select()/.delete() ก่อน แล้วค่อยใส่ตัวกรอง
+     และนับแถวด้วย '*' เพราะบางตาราง (bl_customers, bl_overrides) ไม่มีคอลัมน์ id
+  ---------------------------------------------------------------- */
+  function errText(e) {
+    if (!e) return 'ไม่ทราบสาเหตุ';
+    const parts = [];
+    if (e.code) parts.push('[' + e.code + ']');
+    if (e.message) parts.push(e.message);
+    if (e.details) parts.push('· ' + e.details);
+    if (e.hint) parts.push('· ' + e.hint);
+    return parts.length ? parts.join(' ') : (typeof e === 'string' ? e : JSON.stringify(e));
+  }
+
+  async function countRows(table, apply) {
+    let q = sb.from(table).select('*', { count: 'exact', head: true });
+    if (apply) q = apply(q);
+    const { count, error } = await q;
     if (error) throw error;
     return count || 0;
   }
+
+  async function deleteRows(table, apply) {
+    let q = sb.from(table).delete();
+    if (apply) q = apply(q);
+    const { error } = await q;
+    if (error) throw error;
+  }
+
   async function recompute() {
     const r = await sb.rpc('bl_recompute');
-    if (r.error) BL.toast('คำนวณใหม่ไม่สำเร็จ: ' + r.error.message, 'err');
+    if (r.error) BL.toast('คำนวณใหม่ไม่สำเร็จ: ' + errText(r.error), 'err');
   }
   function ask(msg) { return window.confirm(msg); }
 
   /* ---------- ภาพรวม ---------- */
   async function loadStats() {
-    try {
-      const [a, b, c, d] = await Promise.all([
-        countRows(function () { return sb.from('bl_rejects'); }),
-        countRows(function () { return sb.from('bl_customers'); }),
-        countRows(function () { return sb.from('bl_batches'); }),
-        countRows(function () { return sb.from('bl_overrides'); })
-      ]);
-      $('k-rej').textContent = a.toLocaleString('th-TH');
-      $('k-cus').textContent = b.toLocaleString('th-TH');
-      $('k-bat').textContent = c.toLocaleString('th-TH');
-      $('k-ovr').textContent = d.toLocaleString('th-TH');
-    } catch (e) { BL.toast('โหลดตัวเลขไม่สำเร็จ: ' + e.message, 'err'); }
+    const targets = [
+      ['k-rej', 'bl_rejects'], ['k-cus', 'bl_customers'],
+      ['k-bat', 'bl_batches'], ['k-ovr', 'bl_overrides']
+    ];
+    for (const t of targets) {
+      try {
+        const n = await countRows(t[1]);
+        $(t[0]).textContent = n.toLocaleString('th-TH');
+      } catch (e) {
+        $(t[0]).textContent = '!';
+        $(t[0]).title = t[1] + ': ' + errText(e);
+        BL.toast('อ่านตาราง ' + t[1] + ' ไม่ได้: ' + errText(e), 'err');
+      }
+    }
   }
 
   /* ---------- 1. ลบตามแพลตฟอร์ม ---------- */
@@ -164,63 +190,66 @@
     $('plat-list').innerHTML = PLATS.map(function (k) {
       return '<div class="kill-row" id="pr-' + k + '">' +
         '<div class="nm"><b>' + BL.esc(k) + '</b><span id="pc-' + k + '">กำลังนับ…</span></div>' +
-        '<button class="btn red sm" data-p="' + BL.esc(k) + '" disabled>ลบทั้งหมดของ ' + BL.esc(k) + '</button>' +
+        '<button class="btn red sm" disabled>ลบทั้งหมดของ ' + BL.esc(k) + '</button>' +
         '</div>';
     }).join('');
     for (const k of PLATS) {
-      let n = 0;
-      try { n = await countRows(function () { return sb.from('bl_rejects').eq('platform', k); }); } catch (e) {}
-      $('pc-' + k).textContent = n.toLocaleString('th-TH') + ' รายการในระบบ';
+      let n = 0, bad = null;
+      try {
+        n = await countRows('bl_rejects', function (q) { return q.eq('platform', k); });
+      } catch (e) { bad = e; }
+      $('pc-' + k).textContent = bad
+        ? 'นับไม่ได้: ' + errText(bad)
+        : n.toLocaleString('th-TH') + ' รายการในระบบ';
       const btn = $('pr-' + k).querySelector('button');
-      btn.disabled = n === 0;
-      btn.onclick = function () { delPlatform(k, n); };
+      btn.disabled = bad || n === 0;
+      if (!btn.disabled) btn.onclick = function () { delPlatform(k, n); };
     }
   }
 
   async function delPlatform(k, n) {
     if (!ask('ลบข้อมูลตีกลับของ ' + k + ' ทั้งหมด ' + n.toLocaleString('th-TH') + ' รายการ?\n\nย้อนกลับไม่ได้')) return;
-    const r = await sb.from('bl_rejects').delete().eq('platform', k);
-    if (r.error) return BL.toast('ลบไม่สำเร็จ: ' + r.error.message, 'err');
-    await sb.from('bl_batches').delete().eq('platform', k);
-    await recompute();
-    BL.toast('ลบข้อมูล ' + k + ' เรียบร้อย');
-    refreshAll();
+    try {
+      await deleteRows('bl_rejects', function (q) { return q.eq('platform', k); });
+      try { await deleteRows('bl_batches', function (q) { return q.eq('platform', k); }); } catch (_) {}
+      await recompute();
+      BL.toast('ลบข้อมูล ' + k + ' เรียบร้อย');
+      refreshAll();
+    } catch (e) { BL.toast('ลบไม่สำเร็จ: ' + errText(e), 'err'); }
   }
 
   /* ---------- 2. ลบตามช่วงวันที่ ---------- */
-  function dateQuery() {
-    let b = sb.from('bl_rejects');
+  function hasDateFilter() { return !!($('d1').value || $('d2').value); }
+  function applyDate(q) {
     const d1 = $('d1').value, d2 = $('d2').value, p = $('d-plat').value;
-    if (!d1 && !d2) return null;
-    if (d1) b = b.gte('reject_date', d1);
-    if (d2) b = b.lte('reject_date', d2);
-    if (p) b = b.eq('platform', p);
-    return b;
+    if (d1) q = q.gte('reject_date', d1);
+    if (d2) q = q.lte('reject_date', d2);
+    if (p) q = q.eq('platform', p);
+    return q;
   }
 
   $('btn-count-date').onclick = async function () {
-    const q = dateQuery();
-    if (!q) return BL.toast('ใส่วันที่อย่างน้อย 1 ช่อง', 'warn');
+    if (!hasDateFilter()) return BL.toast('ใส่วันที่อย่างน้อย 1 ช่อง', 'warn');
     try {
-      DATE_N = await countRows(function () { return dateQuery(); });
+      DATE_N = await countRows('bl_rejects', applyDate);
       const pill = $('pill-date');
       pill.textContent = DATE_N.toLocaleString('th-TH') + ' รายการ';
       pill.className = 'count-pill' + (DATE_N ? '' : ' zero');
       $('btn-del-date').disabled = DATE_N === 0;
-    } catch (e) { BL.toast(e.message, 'err'); }
+    } catch (e) { BL.toast('นับไม่สำเร็จ: ' + errText(e), 'err'); }
   };
 
   $('btn-del-date').onclick = async function () {
-    if (!DATE_N) return;
+    if (!DATE_N || !hasDateFilter()) return;
     if (!ask('ลบ ' + DATE_N.toLocaleString('th-TH') + ' รายการในช่วงวันที่ที่เลือก?\n\nย้อนกลับไม่ได้')) return;
-    const q = dateQuery(); if (!q) return;
-    const r = await q.delete();
-    if (r.error) return BL.toast('ลบไม่สำเร็จ: ' + r.error.message, 'err');
-    await recompute();
-    BL.toast('ลบเรียบร้อย ' + DATE_N.toLocaleString('th-TH') + ' รายการ');
-    DATE_N = 0; $('btn-del-date').disabled = true;
-    $('pill-date').textContent = 'ลบแล้ว'; $('pill-date').className = 'count-pill zero';
-    refreshAll();
+    try {
+      await deleteRows('bl_rejects', applyDate);
+      await recompute();
+      BL.toast('ลบเรียบร้อย ' + DATE_N.toLocaleString('th-TH') + ' รายการ');
+      DATE_N = 0; $('btn-del-date').disabled = true;
+      $('pill-date').textContent = 'ลบแล้ว'; $('pill-date').className = 'count-pill zero';
+      refreshAll();
+    } catch (e) { BL.toast('ลบไม่สำเร็จ: ' + errText(e), 'err'); }
   };
 
   /* ---------- 3. ค้นหาแล้วลบรายรายการ ---------- */
@@ -229,7 +258,8 @@
     if (!q) return BL.toast('พิมพ์คำค้นก่อน', 'warn');
     $('tb').innerHTML = '<tr><td colspan="9" class="empty">กำลังค้นหา…</td></tr>';
     try {
-      let b = sb.from('bl_rejects').select('*').order('reject_date', { ascending: false }).limit(500);
+      let b = sb.from('bl_rejects').select('*')
+        .order('reject_date', { ascending: false, nullsFirst: false }).limit(500);
       if (p) b = b.eq('platform', p);
       const ph = BL.normPhone(q);
       if (ph) b = b.eq('phone', ph);
@@ -241,7 +271,8 @@
       FOUND = data || [];
       drawFound();
     } catch (e) {
-      $('tb').innerHTML = '<tr><td colspan="9" class="empty">' + BL.esc(e.message) + '</td></tr>';
+      $('tb').innerHTML = '<tr><td colspan="9" class="empty">' + BL.esc(errText(e)) + '</td></tr>';
+      $('btn-del-sel').disabled = true;
     }
   };
 
@@ -265,9 +296,7 @@
         '<td>' + (r.source === 'manual' ? '<span class="tag">คีย์มือ</span>' : '<span class="tag">ไฟล์</span>') +
         '</td></tr>';
     }).join('');
-    Array.prototype.forEach.call(document.querySelectorAll('.rowchk'), function (c) {
-      c.onchange = syncSel;
-    });
+    Array.prototype.forEach.call(document.querySelectorAll('.rowchk'), function (c) { c.onchange = syncSel; });
     $('chk-all').checked = false;
     syncSel();
   }
@@ -291,15 +320,17 @@
     const ids = selectedIds();
     if (!ids.length) return;
     if (!ask('ลบ ' + ids.length + ' รายการที่เลือก?\n\nย้อนกลับไม่ได้')) return;
-    const CH = 200;
-    for (let i = 0; i < ids.length; i += CH) {
-      const r = await sb.from('bl_rejects').delete().in('id', ids.slice(i, i + CH));
-      if (r.error) return BL.toast('ลบไม่สำเร็จ: ' + r.error.message, 'err');
-    }
-    await recompute();
-    BL.toast('ลบเรียบร้อย ' + ids.length + ' รายการ');
-    FOUND = FOUND.filter(function (r) { return ids.indexOf(r.id) < 0; });
-    drawFound(); refreshAll();
+    try {
+      const CH = 200;
+      for (let i = 0; i < ids.length; i += CH) {
+        const part = ids.slice(i, i + CH);
+        await deleteRows('bl_rejects', function (q) { return q.in('id', part); });
+      }
+      await recompute();
+      BL.toast('ลบเรียบร้อย ' + ids.length + ' รายการ');
+      FOUND = FOUND.filter(function (r) { return ids.indexOf(r.id) < 0; });
+      drawFound(); refreshAll();
+    } catch (e) { BL.toast('ลบไม่สำเร็จ: ' + errText(e), 'err'); }
   };
 
   /* ---------- 4. ลบลูกค้าทั้งราย ---------- */
@@ -313,38 +344,41 @@
     const k = keyOf($('ph').value);
     if (!k) { $('ph-info').textContent = 'เบอร์ไม่ถูกต้อง'; $('btn-ph-del').disabled = true; return; }
     try {
-      const n = await countRows(function () { return sb.from('bl_rejects').eq('phone', k); });
-      const { data: c } = await sb.from('bl_customers').select('name,risk_level,reject_count')
-        .eq('phone', k).maybeSingle();
+      const n = await countRows('bl_rejects', function (q) { return q.eq('phone', k); });
+      const { data: c } = await sb.from('bl_customers')
+        .select('name,risk_level,reject_count').eq('phone', k).maybeSingle();
       PH_READY = k;
       $('ph-info').innerHTML = '<b>' + BL.esc(BL.fmtPhone(k)) + '</b> — ' +
-        (c ? BL.esc(c.name || 'ไม่ระบุชื่อ') + ' · ระดับ ' + BL.esc((BL.RISK[c.risk_level] || {}).t || c.risk_level) : 'ไม่มีในสรุปลูกค้า') +
+        (c ? BL.esc(c.name || 'ไม่ระบุชื่อ') + ' · ระดับ ' +
+             BL.esc((BL.RISK[c.risk_level] || {}).t || c.risk_level)
+           : 'ไม่มีในสรุปลูกค้า') +
         ' · ประวัติตีกลับ <b>' + n.toLocaleString('th-TH') + '</b> รายการ';
       $('btn-ph-del').disabled = (n === 0 && !c);
-    } catch (e) { BL.toast(e.message, 'err'); }
+    } catch (e) { BL.toast('ตรวจไม่สำเร็จ: ' + errText(e), 'err'); }
   };
 
   $('btn-ph-del').onclick = async function () {
     if (!PH_READY) return;
-    if (!ask('ลบลูกค้า ' + BL.fmtPhone(PH_READY) + ' ออกจากระบบทั้งหมด?\n\nรวมประวัติตีกลับ บันทึกของทีม และการตั้งค่าบล็อก/ยกเว้น\nย้อนกลับไม่ได้')) return;
-    let r = await sb.from('bl_rejects').delete().eq('phone', PH_READY);
-    if (r.error) return BL.toast('ลบไม่สำเร็จ: ' + r.error.message, 'err');
-    await sb.from('bl_notes').delete().eq('phone', PH_READY);
-    // การบล็อก/ยกเว้นเอง สงวนให้ผู้ดูแลลบเท่านั้น
-    let keptOverride = false;
-    if (BL.isAdmin()) {
-      await sb.from('bl_overrides').delete().eq('phone', PH_READY);
-    } else {
-      const { data: o } = await sb.from('bl_overrides').select('phone').eq('phone', PH_READY).maybeSingle();
-      keptOverride = !!o;
-    }
-    // bl_customers ระบบสร้างใหม่จาก bl_rejects เสมอ จึงใช้ recompute แทนการลบตรง ๆ
-    await recompute();
-    BL.toast(keptOverride
-      ? 'ลบประวัติแล้ว — แต่เบอร์นี้ยังถูกตั้งค่าบล็อก/ยกเว้นไว้ ต้องให้ผู้ดูแลล้างให้'
-      : 'ลบลูกค้ารายนี้เรียบร้อย', keptOverride ? 'warn' : 'ok');
-    $('ph').value = ''; $('ph-info').textContent = '—'; $('btn-ph-del').disabled = true; PH_READY = '';
-    refreshAll();
+    if (!ask('ลบลูกค้า ' + BL.fmtPhone(PH_READY) + ' ออกจากระบบทั้งหมด?\n\n' +
+             'รวมประวัติตีกลับ บันทึกของทีม และการตั้งค่าบล็อก/ยกเว้น\nย้อนกลับไม่ได้')) return;
+    try {
+      await deleteRows('bl_rejects', function (q) { return q.eq('phone', PH_READY); });
+      try { await deleteRows('bl_notes', function (q) { return q.eq('phone', PH_READY); }); } catch (_) {}
+      let keptOverride = false;
+      if (BL.isAdmin()) {
+        try { await deleteRows('bl_overrides', function (q) { return q.eq('phone', PH_READY); }); } catch (_) {}
+      } else {
+        const { data: o } = await sb.from('bl_overrides').select('phone').eq('phone', PH_READY).maybeSingle();
+        keptOverride = !!o;
+      }
+      await recompute();   // bl_customers ถูกสร้างใหม่จาก bl_rejects เสมอ
+      BL.toast(keptOverride
+        ? 'ลบประวัติแล้ว — แต่เบอร์นี้ยังถูกตั้งค่าบล็อก/ยกเว้นไว้ ต้องให้ผู้ดูแลล้างให้'
+        : 'ลบลูกค้ารายนี้เรียบร้อย', keptOverride ? 'warn' : 'ok');
+      $('ph').value = ''; $('ph-info').textContent = '—';
+      $('btn-ph-del').disabled = true; PH_READY = '';
+      refreshAll();
+    } catch (e) { BL.toast('ลบไม่สำเร็จ: ' + errText(e), 'err'); }
   };
 
   /* ---------- 5. ล้างทั้งระบบ ---------- */
@@ -357,20 +391,18 @@
     if (!ask('ล้างข้อมูลตีกลับทั้งระบบ?\n\nการกระทำนี้ย้อนกลับไม่ได้ และจะลบข้อมูลของทุกแพลตฟอร์ม')) return;
     const btn = this; btn.disabled = true; btn.innerHTML = '<span class="spin"></span> กำลังล้าง';
     try {
-      let r = await sb.from('bl_rejects').delete().gt('id', 0);
-      if (r.error) throw r.error;
-      await sb.from('bl_notes').delete().gt('id', 0);
-      await sb.from('bl_batches').delete().not('id', 'is', null);
+      await deleteRows('bl_rejects', function (q) { return q.gt('id', 0); });
+      try { await deleteRows('bl_notes', function (q) { return q.gt('id', 0); }); } catch (_) {}
+      try { await deleteRows('bl_batches', function (q) { return q.not('id', 'is', null); }); } catch (_) {}
       if (BL.isAdmin() && !$('keep-ovr').checked) {
-        await sb.from('bl_overrides').delete().neq('phone', '');
+        try { await deleteRows('bl_overrides', function (q) { return q.neq('phone', ''); }); } catch (_) {}
       }
-      // bl_customers ถูกสร้างใหม่จาก bl_rejects ทุกครั้ง — recompute จะล้างให้เอง
       await recompute();
       BL.toast('ล้างข้อมูลทั้งระบบเรียบร้อย');
       $('wipe-word').value = '';
       refreshAll();
     } catch (e) {
-      BL.toast('ล้างไม่สำเร็จ: ' + e.message, 'err');
+      BL.toast('ล้างไม่สำเร็จ: ' + errText(e), 'err');
     } finally {
       btn.disabled = true; btn.textContent = '🗑 ล้างข้อมูลทั้งระบบ';
     }
