@@ -824,3 +824,89 @@ html[data-platform="Facebook"] .p-hero::before{background:radial-gradient(circle
   .dash-platform-pill{align-items:flex-start;flex-direction:column}
   .dash-platform-pill .logo-mark.pill{width:108px;height:26px}
 }
+
+
+/* ======================================================================
+   Brand Accuracy + Compact Hero — 2026-09-18
+   Uses untouched external logo assets; fixes oversized hero and logo distortion.
+   ====================================================================== */
+.logo-mark img,.platform-mini-logo img{display:block;max-width:100%;max-height:100%;object-fit:contain}
+.logo-mark{background:none!important;box-shadow:none!important;padding:0!important;border-radius:0!important}
+.logo-mark.hero{width:auto!important;max-width:190px!important;height:48px!important;display:inline-flex!important;align-items:center!important;gap:12px!important}
+.logo-mark.hero.is-icon{height:48px!important;max-width:none!important}
+.logo-mark.hero.is-icon img{width:48px!important;height:48px!important}
+.logo-mark.hero .logo-label{font-size:25px;font-weight:700;line-height:1;color:#fff;letter-spacing:-.02em}
+.logo-mark.card{width:auto!important;max-width:145px!important;height:36px!important;display:inline-flex!important;gap:9px!important}
+.logo-mark.card.is-icon img{width:36px!important;height:36px!important}
+.logo-mark.card .logo-label{font-size:18px;font-weight:700;color:var(--card-p1,#172033)}
+.logo-mark.nav{width:auto!important;max-width:88px!important;height:20px!important;background:none!important;margin-right:8px!important;filter:none!important}
+.logo-mark.nav.is-icon{width:20px!important}
+.logo-mark.watermark{display:none!important}
+.platform-mini-logo{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.platform-mini-logo.btn{width:22px;height:22px;border-radius:7px;background:#fff;padding:2px;box-shadow:none}
+.platform-mini-logo.pill{width:26px;height:26px;border-radius:8px;background:#fff;padding:3px}
+.platform-mini-logo.btn img,.platform-mini-logo.pill img{width:100%;height:100%}
+
+html[data-platform] .p-hero{
+  min-height:0!important;
+  padding:22px 24px!important;
+  border-radius:24px!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 330px!important;
+  gap:24px!important;
+  align-items:center!important;
+  margin-bottom:20px!important;
+}
+html[data-platform] .p-hero .hero-copy{max-width:650px!important;align-self:center}
+html[data-platform] .p-hero .ttl{margin:0 0 10px!important;font-size:0!important;display:block!important}
+html[data-platform] .p-hero .hero-meta{margin-bottom:8px!important;gap:8px!important}
+html[data-platform] .p-hero .hero-chip,
+html[data-platform] .p-hero .hero-kicker{font-size:10.5px!important;padding:6px 10px!important;letter-spacing:.045em!important}
+html[data-platform] .p-hero .sub2{font-size:13.5px!important;line-height:1.55!important;margin-top:6px!important;opacity:.92!important}
+html[data-platform] .p-hero .hero-side{display:flex!important;flex-direction:column!important;gap:10px!important;align-items:stretch!important;width:330px!important;max-width:100%!important}
+html[data-platform] .p-hero .hero-illustration{
+  width:100%!important;
+  height:190px!important;
+  min-height:0!important;
+  padding:8px!important;
+  border-radius:18px!important;
+  overflow:hidden!important;
+}
+html[data-platform] .p-hero .hero-illustration img{width:100%!important;height:100%!important;object-fit:contain!important}
+html[data-platform] .p-hero .acts{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;width:100%!important;margin:0!important}
+html[data-platform] .p-hero .acts a{min-height:40px!important;padding:8px 10px!important;border-radius:10px!important;justify-content:center!important;gap:7px!important;font-size:12.5px!important;white-space:nowrap!important}
+
+/* Preserve brand marks without recoloring, stretching or effects */
+html[data-platform="TikTok"] .logo-mark img,
+html[data-platform="Lazada"] .logo-mark img,
+html[data-platform="Shopee"] .logo-mark img,
+html[data-platform="Facebook"] .logo-mark img,
+html[data-platform] .platform-mini-logo img{filter:none!important;transform:none!important}
+html[data-platform="TikTok"] .logo-mark.hero,
+html[data-platform="Lazada"] .logo-mark.hero,
+html[data-platform="Shopee"] .logo-mark.hero{background:#fff!important;border-radius:12px!important;padding:7px 11px!important;box-shadow:0 8px 20px rgba(0,0,0,.12)!important}
+html[data-platform="Facebook"] .logo-mark.hero{background:transparent!important}
+html[data-platform="Facebook"] .logo-mark.hero .logo-label{color:#fff!important}
+
+/* Compact home dashboard platform marks */
+.platform-card .brand-row{align-items:center!important}
+.platform-card .logo-mark.card{background:#fff!important;border-radius:10px!important;padding:5px 8px!important;box-shadow:0 7px 18px rgba(16,26,44,.08)!important}
+.platform-card .logo-mark.card.is-icon{background:transparent!important;padding:0!important;box-shadow:none!important}
+.dash-platform-pill .platform-mini-logo.pill{width:24px!important;height:24px!important;background:#fff!important;border-radius:7px!important;padding:2px!important;box-shadow:none!important}
+.dash-platform-pill{gap:10px!important;padding:10px 12px!important;border-radius:14px!important}
+.dash-platform-pill .meta{min-width:0}
+
+@media(max-width:900px){
+  html[data-platform] .p-hero{grid-template-columns:1fr!important}
+  html[data-platform] .p-hero .hero-side{width:100%!important}
+  html[data-platform] .p-hero .hero-illustration{height:170px!important}
+}
+@media(max-width:620px){
+  html[data-platform] .p-hero{padding:18px!important;border-radius:20px!important;gap:16px!important}
+  .logo-mark.hero{max-width:160px!important;height:42px!important}
+  .logo-mark.hero.is-icon img{width:42px!important;height:42px!important}
+  .logo-mark.hero .logo-label{font-size:22px!important}
+  html[data-platform] .p-hero .hero-illustration{height:145px!important}
+  html[data-platform] .p-hero .acts{grid-template-columns:1fr!important}
+  html[data-platform] .p-hero .acts a{justify-content:flex-start!important}
+}
