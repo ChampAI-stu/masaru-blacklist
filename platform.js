@@ -78,7 +78,8 @@
         '<div class="tw"><table><thead><tr>' +
         '<th>วันที่ตีกลับ</th><th>เบอร์</th><th>ชื่อ</th><th>ร้าน</th><th>เลขออเดอร์</th>' +
         '<th>เลขพัสดุ</th><th>จังหวัด</th><th class="num">COD</th><th>เหตุผล</th><th>ที่มา</th>' +
-        '</tr></thead><tbody id="tb"><tr><td colspan="10" class="empty">กำลังโหลด…</td></tr></tbody></table></div>' +
+        (BL.isAdmin() ? '<th style="width:56px"></th>' : '') +
+        '</tr></thead><tbody id="tb"><tr><td colspan="11" class="empty">กำลังโหลด…</td></tr></tbody></table></div>' +
       '</div>';
   }
 
@@ -178,7 +179,7 @@
 
   /* ---------------- ตารางรายการ ---------------- */
   async function loadRows() {
-    $('tb').innerHTML = '<tr><td colspan="10" class="empty">กำลังโหลด…</td></tr>';
+    $('tb').innerHTML = '<tr><td colspan="11" class="empty">กำลังโหลด…</td></tr>';
     const d1 = $('d1').value, d2 = $('d2').value, q = $('q').value.trim();
     try {
       ROWS = await BL.pageAll(function () {
@@ -197,14 +198,14 @@
       });
       drawRows();
     } catch (e) {
-      $('tb').innerHTML = '<tr><td colspan="10" class="empty">' + BL.esc(e.message) + '</td></tr>';
+      $('tb').innerHTML = '<tr><td colspan="11" class="empty">' + BL.esc(e.message) + '</td></tr>';
     }
   }
 
   function drawRows() {
     $('cnt').textContent = 'พบ ' + ROWS.length.toLocaleString('th-TH') + ' รายการ' +
       (ROWS.length > 1500 ? ' (แสดง 1,500 รายการแรก — โหลด Excel เพื่อดูทั้งหมด)' : '');
-    if (!ROWS.length) { $('tb').innerHTML = '<tr><td colspan="10" class="empty">ไม่พบรายการ</td></tr>'; return; }
+    if (!ROWS.length) { $('tb').innerHTML = '<tr><td colspan="11" class="empty">ไม่พบรายการ</td></tr>'; return; }
     $('tb').innerHTML = ROWS.slice(0, 1500).map(function (r) {
       return '<tr>' +
         '<td>' + BL.thDate(r.reject_date) + '</td>' +
@@ -218,8 +219,30 @@
         '<td class="num">' + (r.cod_amount ? Math.round(r.cod_amount).toLocaleString('th-TH') : '-') + '</td>' +
         '<td>' + BL.esc(r.reason || '-') + '</td>' +
         '<td>' + (r.source === 'manual'
-          ? '<span class="tag">คีย์มือ</span>' : '<span class="tag">ไฟล์</span>') + '</td></tr>';
+          ? '<span class="tag">คีย์มือ</span>' : '<span class="tag">ไฟล์</span>') + '</td>' +
+        (BL.isAdmin()
+          ? '<td><button class="btn sm ghost" data-del="' + r.id + '" title="ลบรายการนี้">ลบ</button></td>'
+          : '') + '</tr>';
     }).join('');
+
+    Array.prototype.forEach.call($('tb').querySelectorAll('[data-del]'), function (b) {
+      b.onclick = function () { delRow(Number(b.dataset.del)); };
+    });
+  }
+
+  // ลบรายการเดียวจากตาราง (เฉพาะผู้ดูแลระบบ) แล้วคำนวณความเสี่ยงของเบอร์นั้นใหม่
+  async function delRow(id) {
+    const row = ROWS.filter(function (x) { return x.id === id; })[0];
+    if (!row) return;
+    if (!window.confirm('ลบรายการนี้?\n' + BL.fmtPhone(row.phone) +
+        (row.order_no ? ' · ' + row.order_no : '') + '\n\nย้อนกลับไม่ได้')) return;
+    const r = await sb.from('bl_rejects').delete().eq('id', id);
+    if (r.error) return BL.toast('ลบไม่สำเร็จ: ' + r.error.message, 'err');
+    await sb.rpc('bl_recompute', { p_phone: row.phone });
+    BL.toast('ลบรายการแล้ว');
+    ROWS = ROWS.filter(function (x) { return x.id !== id; });
+    drawRows();
+    loadStats();
   }
 
   function exportXls() {
