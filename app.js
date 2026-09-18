@@ -50,8 +50,14 @@
     if (s.length !== 9 && s.length !== 8) return '';
     return '0' + s;
   }
+  function isAnonPhone(p) { return /^ANON-[A-Z]+-[^-]+-[0-9a-f]+$/i.test(String(p || '')); }
   function fmtPhone(p) {
     if (!p) return '-';
+    if (isAnonPhone(p)) {
+      const m = String(p).match(/^ANON-[^-]+-([^-]+)-/i);
+      return 'ปิดบัง ••' + (m ? m[1] : '');
+    }
+    p = String(p);
     if (p.length === 10) return p.slice(0, 3) + '-' + p.slice(3, 6) + '-' + p.slice(6);
     if (p.length === 9) return p.slice(0, 2) + '-' + p.slice(2, 5) + '-' + p.slice(5);
     return p;
@@ -282,7 +288,7 @@
   }
 
   window.BL = {
-    sb: sb, cfg: C, normPhone: normPhone, fmtPhone: fmtPhone, toDate: toDate,
+    sb: sb, cfg: C, normPhone: normPhone, fmtPhone: fmtPhone, isAnonPhone: isAnonPhone, toDate: toDate,
     thDate: thDate, num: num, pageAll: pageAll, RISK: RISK, riskBadge: riskBadge,
     toast: toast, esc: esc, requireAuth: requireAuth, isAdmin: isAdmin,
     signOut: signOut, renderNav: renderNav, me: function () { return ME; },
