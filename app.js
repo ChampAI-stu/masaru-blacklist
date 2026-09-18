@@ -201,20 +201,31 @@
   /* ---------- แพลตฟอร์ม ---------- */
   // key = ค่าที่เก็บในคอลัมน์ platform ของตาราง bl_rejects
   const PLATFORMS = [
-    { key: 'TikTok',   file: 'tiktok.html',   name: 'TikTok Shop', c1: '#111827', c2: '#FE2C55', ic: '🎵', logo: 'assets/logos/tiktok.svg', hero: 'assets/hero/tiktok-hero.svg', tagline: 'Creator Commerce Console', vibe: 'Neo Commerce' },
-    { key: 'Lazada',   file: 'lazada.html',   name: 'Lazada',      c1: '#0F146D', c2: '#F57224', ic: '🛒', logo: 'assets/logos/lazada.svg', hero: 'assets/hero/lazada-hero.svg', tagline: 'Premium Marketplace Control', vibe: 'Royal Commerce' },
-    { key: 'Shopee',   file: 'shopee.html',   name: 'Shopee',      c1: '#B03A00', c2: '#EE4D2D', ic: '🧡', logo: 'assets/logos/shopee.svg', hero: 'assets/hero/shopee-hero.svg', tagline: 'Retail Velocity Dashboard', vibe: 'Retail Energy' },
-    { key: 'Facebook', file: 'facebook.html', name: 'Facebook',    c1: '#0B3C8D', c2: '#1877F2', ic: '📘', logo: 'assets/logos/facebook.svg', hero: 'assets/hero/facebook-hero.svg', tagline: 'Social Response Intelligence', vibe: 'Network Data' }
+    { key: 'TikTok',   file: 'tiktok.html',   name: 'TikTok Shop', c1: '#0B0B0F', c2: '#FE2C55', ic: '♪', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b6/Tiktok_logo_text.svg', icon: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Tiktok_icon.svg', hero: 'assets/hero/tiktok-hero.svg', vibe: 'Neo Commerce' },
+    { key: 'Lazada',   file: 'lazada.html',   name: 'Lazada',      c1: '#25106A', c2: '#F57224', ic: 'L', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/Lazada_%282019%29.svg', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/Lazada_%282019%29.svg', hero: 'assets/hero/lazada-hero.svg', vibe: 'Royal Commerce' },
+    { key: 'Shopee',   file: 'shopee.html',   name: 'Shopee',      c1: '#B63B1E', c2: '#EE4D2D', ic: 'S', logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fe/Shopee.svg', icon: 'https://upload.wikimedia.org/wikipedia/commons/f/fe/Shopee.svg', hero: 'assets/hero/shopee-hero.svg', vibe: 'Retail Energy' },
+    { key: 'Facebook', file: 'facebook.html', name: 'Facebook',    c1: '#0B3C8D', c2: '#0866FF', ic: 'f', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b9/2023_Facebook_icon.svg', icon: 'https://upload.wikimedia.org/wikipedia/commons/b/b9/2023_Facebook_icon.svg', hero: 'assets/hero/facebook-hero.svg', vibe: 'Network Data', logoType: 'icon' }
   ];
+
   function platformOf(key) {
     for (var i = 0; i < PLATFORMS.length; i++) if (PLATFORMS[i].key === key) return PLATFORMS[i];
     return null;
   }
 
   function platformLogoHTML(p, cls, alt) {
-    if (!p || !p.logo) return '<span class="logo-mark ' + (cls || '') + '">' + (p && p.ic ? p.ic : '📦') + '</span>';
-    return '<span class="logo-mark ' + (cls || '') + '"><img src="' + esc(p.logo) + '" alt="' + esc((alt || p.name || p.key || 'platform') + ' logo') + '"></span>';
+    if (!p || !p.logo) return '<span class="logo-mark ' + (cls || '') + '">' + (p && p.ic ? p.ic : '•') + '</span>';
+    const type = p.logoType === 'icon' ? ' is-icon' : ' is-wordmark';
+    const label = p.logoType === 'icon' && (cls === 'hero' || cls === 'card')
+      ? '<span class="logo-label">' + esc(p.name || p.key || '') + '</span>' : '';
+    return '<span class="logo-mark ' + (cls || '') + type + '"><img src="' + esc(p.logo) + '" alt="' + esc((alt || p.name || p.key || 'platform') + ' logo') + '">' + label + '</span>';
   }
+
+  function platformIconHTML(p, cls, alt) {
+    const src = p && (p.icon || p.logo);
+    if (!src) return '<span class="platform-mini-logo ' + (cls || '') + '">' + (p && p.ic ? p.ic : '•') + '</span>';
+    return '<span class="platform-mini-logo ' + (cls || '') + '"><img src="' + esc(src) + '" alt="' + esc((alt || p.name || p.key || 'platform') + ' icon') + '"></span>';
+  }
+
 
   /* ---------- แถบเมนูบน ---------- */
   const NAV = [
@@ -277,6 +288,6 @@
     signOut: signOut, renderNav: renderNav, me: function () { return ME; },
     role: function () { return ROLE; }, profile: function () { return PROFILE; },
     ROLE_TH: ROLE_TH, blockScreen: blockScreen,
-    PLATFORMS: PLATFORMS, platformOf: platformOf, platformLogoHTML: platformLogoHTML
+    PLATFORMS: PLATFORMS, platformOf: platformOf, platformLogoHTML: platformLogoHTML, platformIconHTML: platformIconHTML
   };
 })();
