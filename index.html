@@ -152,9 +152,9 @@
       <div class="ic">👥</div><div class="t">ผู้ใช้งาน</div>
       <div class="d">จัดการสิทธิ์ผู้ใช้ — ตั้งผู้ดูแล ระงับบัญชี (เฉพาะผู้ดูแลระบบ)</div>
     </a>
-    <a class="link-card hide" href="manage.html" id="lc-manage">
+    <a class="link-card" href="manage.html">
       <div class="ic">🗑</div><div class="t">ลบ / จัดการข้อมูล</div>
-      <div class="d">ลบตามแพลตฟอร์ม ช่วงวันที่ รายรายการ หรือล้างทั้งระบบ (เฉพาะผู้ดูแลระบบ)</div>
+      <div class="d">ลบตามแพลตฟอร์ม ช่วงวันที่ รายรายการ หรือล้างทั้งระบบเพื่อเริ่มใหม่</div>
     </a>
   </div>
 
@@ -322,10 +322,7 @@
     if (!(await BL.requireAuth())) return;
     $('app').classList.remove('hide');
     BL.renderNav('index.html');
-    if (BL.isAdmin()) {
-      $('lc-users').classList.remove('hide');
-      $('lc-manage').classList.remove('hide');
-    }
+    if (BL.isAdmin()) $('lc-users').classList.remove('hide');
     loadDash(); loadTop();
   })();
 })();
