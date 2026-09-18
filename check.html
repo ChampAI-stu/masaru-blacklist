@@ -133,7 +133,7 @@
   /* ---------- ค้นหา ---------- */
   async function run() {
     const raw = $('q').value;
-    const p = BL.normPhone(raw);
+    const p = (BL.isAnonPhone && BL.isAnonPhone(raw)) ? raw : BL.normPhone(raw);
     if (!p) { BL.toast('เบอร์ไม่ถูกต้อง — ใส่เบอร์ไทย 9–10 หลัก', 'err'); return; }
     CUR = p;
     $('result').classList.add('hide');
