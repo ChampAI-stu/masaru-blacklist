@@ -1071,3 +1071,20 @@ html[data-platform="Facebook"] .logo-mark.hero .logo-label{color:#fff!important}
   .dash-mini b{font-size:17px!important}
   .dash-platform-strip{grid-template-columns:1fr!important}
 }
+
+
+/* ======================================================================
+   Toast visibility hotfix — keep notification fully off-screen when hidden
+   ====================================================================== */
+#bl-toast{
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+  transform:translate(-50%,calc(100% + 90px))!important;
+}
+#bl-toast.show{
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  transform:translate(-50%,0)!important;
+}
